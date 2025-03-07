@@ -453,27 +453,26 @@
         </div>
     </div>
 
-    <header>
-        <div class="logo">排队系统</div>
-        <nav>
-            <ul>
-                <li><a href="#" class="active">主页</a></li>
-                <li><a href="#">关于</a></li>
-                <li><a href="#">联系我们</a></li>
-            </ul>
-        </nav>
-    </header>
-
+    <!-- 主应用容器 -->
     <div class="container">
-        <h1 class="section-title">加入排队</h1>
+        <header>
+            <div class="logo">排队系统</div>
+            <nav>
+                <ul>
+                    <li><a href="#" class="active">队列</a></li>
+                </ul>
+            </nav>
+        </header>
+
+        <h1 class="section-title">加入队列</h1>
         
-        <div class="queue-form">
+        <section class="queue-form">
             <div class="form-group">
-                <input type="text" id="nameInput" placeholder="请输入您的姓名...">
+                <input type="text" id="nameInput" placeholder="输入您的姓名" />
                 <button id="joinQueueBtn">加入队列</button>
             </div>
-        </div>
-        
+        </section>
+
         <div class="queue-info">
             <div class="queue-count-container">
                 当前排队人数: <span id="queueCount">0</span>
@@ -483,16 +482,19 @@
             </div>
             <div id="loadingSpinner" class="loading-spinner" style="display: none;"></div>
         </div>
-        
-        <div class="queue-list-container">
-            <h2>当前队列</h2>
-            <div id="queueList"></div>
-        </div>
+
+        <section class="queue-list-container">
+            <h2 class="section-title">当前队列</h2>
+            <div id="queueList" class="queue-list">
+                <!-- 队列项目将在这里动态生成 -->
+            </div>
+        </section>
     </div>
-    
+
+    <!-- 通知容器 -->
     <div id="notificationContainer" class="notification-container"></div>
 
-    <!-- 管理员控制按钮的模板 -->
+    <!-- 管理员控制按钮模板 -->
     <template id="adminControlsTemplate">
         <div class="admin-controls">
             <button class="move-up-btn"><i class="fas fa-arrow-up"></i></button>
