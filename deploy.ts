@@ -651,6 +651,17 @@ serve(async (req) => {
           <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
       </head>
       <body>
+          <!-- 页头 -->
+          <header style="display: flex; justify-content: space-between; align-items: center; padding: 20px; background-color: #E5E5E5;">
+              <div class="logo" style="font-size: 24px; font-weight: bold;">SF</div>
+              <nav>
+                  <ul style="list-style: none; padding: 0; margin: 0; display: flex;">
+                      <li style="margin-left: 20px;"><a href="/" style="text-decoration: none; color: #4A3F35;">排队系统</a></li>
+                      <li style="margin-left: 20px;"><a href="https://sammfang.us.kg" target="_blank" style="text-decoration: none; color: #4A3F35; font-weight: bold; padding: 8px 15px; background-color: #4A3F35; color: #FAF9F6; border-radius: 4px;">访问个人网站</a></li>
+                  </ul>
+              </nav>
+          </header>
+
           <!-- 角色选择界面 -->
           <div id="roleSelection" class="role-selection">
               <div class="role-container">
@@ -723,6 +734,39 @@ serve(async (req) => {
                   <button class="remove-btn"><i class="fas fa-times"></i></button>
               </div>
           </template>
+
+          <!-- 在HTML末尾添加页脚 -->
+          <footer style="display: flex; justify-content: space-between; align-items: center; padding: 20px; background-color: #4A3F35; color: #FAF9F6; border-top: 1px solid #ccc; margin-top: 40px;">
+              <div class="footer-left" style="font-size: 14px; color: #FAF9F6;">
+                  &copy; 2025 萨慕堏. 保留所有权利.
+              </div>
+              <div class="footer-right" style="display: flex; gap: 15px;">
+                  <a href="javascript:void(0)" class="social-link" title="QQ" onclick="showContactInfo('QQ', '260379602')" style="color: #FAF9F6;">
+                      <i class="fab fa-qq"></i>
+                  </a>
+                  <a href="javascript:void(0)" class="social-link" title="微信" onclick="showContactInfo('微信', 'yyyingFFFFangOwO（不常用）')" style="color: #FAF9F6;">
+                      <i class="fab fa-weixin"></i>
+                  </a>
+                  <a href="https://space.bilibili.com/495830200" target="_blank" class="social-link" title="哔哩哔哩" style="color: #FAF9F6;">
+                      <i class="fab fa-bilibili"></i>
+                  </a>
+                  <a href="https://github.com/FFFFANGooowo" target="_blank" class="social-link" title="GitHub" style="color: #FAF9F6;">
+                      <i class="fab fa-github"></i>
+                  </a>
+                  <a href="https://steamcommunity.com/id/sammfang/" target="_blank" class="social-link" title="Steam" style="color: #FAF9F6;">
+                      <i class="fab fa-steam"></i>
+                  </a>
+              </div>
+          </footer>
+
+          <!-- 添加联系信息弹窗 -->
+          <div id="contactModal" class="contact-modal">
+              <div class="modal-content">
+                  <span class="close-modal">&times;</span>
+                  <h3 id="modalTitle">联系方式</h3>
+                  <p id="modalContent"></p>
+              </div>
+          </div>
 
           <script>
               // 简单的调试检查
@@ -1096,6 +1140,30 @@ serve(async (req) => {
                       return \`\${minutes}分钟\${seconds % 60}秒\`;
                   } else {
                       return \`\${seconds}秒\`;
+                  }
+              }
+
+              // 在现有JavaScript之后添加弹窗函数
+              function showContactInfo(platform, info) {
+                  const modal = document.getElementById('contactModal');
+                  const modalTitle = document.getElementById('modalTitle');
+                  const modalContent = document.getElementById('modalContent');
+                  
+                  modalTitle.textContent = platform + '联系方式';
+                  modalContent.textContent = info;
+                  modal.style.display = 'block';
+                  
+                  // 关闭按钮
+                  const closeBtn = document.querySelector('.close-modal');
+                  closeBtn.onclick = function() {
+                      modal.style.display = 'none';
+                  }
+                  
+                  // 点击弹窗外关闭
+                  window.onclick = function(event) {
+                      if (event.target == modal) {
+                          modal.style.display = 'none';
+                      }
                   }
               }
           </script>
