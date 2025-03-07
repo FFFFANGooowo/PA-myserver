@@ -14,6 +14,9 @@ const clients = new Set<WebSocket>();
 // 添加简单的管理员密码 - 在生产环境中应使用更安全的方法
 const ADMIN_PASSWORD = "admin123";
 
+// 限制队列大小，避免内存问题
+const MAX_QUEUE_SIZE = 100;
+
 // 处理HTTP请求和WebSocket连接
 serve(async (req) => {
   const url = new URL(req.url);
@@ -77,6 +80,12 @@ serve(async (req) => {
                 name: data.name,
                 joinTime: new Date()
               };
+              
+              // 添加到队列时检查大小
+              if (queue.length >= MAX_QUEUE_SIZE) {
+                // 移除最早加入的客户
+                queue.shift();
+              }
               queue.push(newPerson);
               
               // 通知加入成功
@@ -172,9 +181,11 @@ serve(async (req) => {
   }
   
   try {
-    // 注意：在Deno Deploy中，需要将静态文件作为模块导入或使用fetch获取
+    // 这里应该处理静态文件请求
+    // 但在 Deno Deploy 中，我们可以内联 HTML
     if (path === "/index.html") {
-      const html = `<!DOCTYPE html>
+      // 内联的 HTML 内容
+      return new Response(`<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -1136,7 +1147,8 @@ function broadcastQueue() {
   }
 }
 
-// 定期清理队列中的闲置项目
+// 暂时禁用定期清理功能
+/*
 setInterval(() => {
   const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
   const initialLength = queue.length;
@@ -1147,4 +1159,5 @@ setInterval(() => {
     console.log(`已移除 ${initialLength - queue.length} 个闲置队列项目`);
     broadcastQueue();
   }
-}, 15 * 60 * 1000); 
+}, 15 * 60 * 1000);
+*/ 
