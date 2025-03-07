@@ -647,6 +647,65 @@ serve(async (req) => {
                       width: 100%;
                   }
               }
+
+              /* 添加弹窗样式 */
+              .contact-modal {
+                  display: none;
+                  position: fixed;
+                  z-index: 10000;
+                  left: 0;
+                  top: 0;
+                  width: 100%;
+                  height: 100%;
+                  background-color: rgba(0,0,0,0.5);
+              }
+              
+              .modal-content {
+                  background-color: #FAF9F6;
+                  margin: 15% auto;
+                  padding: 20px;
+                  border-radius: 10px;
+                  width: 300px;
+                  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+                  position: relative;
+                  text-align: center;
+                  color: #4A3F35;
+              }
+              
+              .close-modal {
+                  position: absolute;
+                  top: 10px;
+                  right: 15px;
+                  font-size: 24px;
+                  font-weight: bold;
+                  cursor: pointer;
+                  color: #4A3F35;
+              }
+              
+              .close-modal:hover {
+                  color: #000;
+              }
+              
+              /* 页脚样式 */
+              footer {
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  padding: 20px;
+                  background-color: #4A3F35;
+                  color: #FAF9F6;
+                  border-top: 1px solid #ccc;
+                  margin-top: 40px;
+              }
+              
+              .social-link {
+                  color: #FAF9F6;
+                  transition: color 0.3s;
+              }
+              
+              .social-link:hover {
+                  color: #D3CEC4;
+              }
           </style>
           <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
       </head>
