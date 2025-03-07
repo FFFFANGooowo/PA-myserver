@@ -185,7 +185,7 @@ serve(async (req) => {
   
   try {
     if (requestPath === "/index.html") {
-      // 使用内联的HTML代码替代从GitHub获取
+      // 使用完整的HTML内容，不是占位符
       const html = `<!DOCTYPE html>
       <html lang="zh-CN">
       <head>
@@ -202,16 +202,216 @@ serve(async (req) => {
                   color: #4A3F35;
                   font-weight: 600;
               }
+
+              a {
+                  text-decoration: none;
+                  color: #4A3F35;
+              }
+
+              /* 头部样式 */
+              header {
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  padding: 20px;
+                  background-color: #E5E5E5;
+              }
+
+              .logo {
+                  font-size: 24px;
+                  font-weight: bold;
+              }
+
+              /* 更多CSS样式... */
               
-              /* 这里添加所有CSS样式... */
+              /* 角色选择界面 */
+              .role-selection {
+                  position: fixed;
+                  top: 0;
+                  left: 0;
+                  width: 100%;
+                  height: 100%;
+                  background-color: #FAF9F6;
+                  display: flex;
+                  justify-content: center;
+                  align-items: center;
+                  z-index: 1000;
+              }
+
+              .role-container {
+                  background-color: white;
+                  padding: 40px;
+                  border-radius: 15px;
+                  box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+                  text-align: center;
+                  max-width: 400px;
+                  width: 90%;
+              }
           </style>
           <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
       </head>
       <body>
-          <!-- 这里添加所有HTML内容... -->
-          
+          <!-- 角色选择界面 -->
+          <div id="roleSelection" class="role-selection">
+              <div class="role-container">
+                  <h2>请选择您的角色</h2>
+                  <div class="role-buttons">
+                      <button id="userRoleBtn" class="role-btn user-role">用户</button>
+                      <button id="adminRoleBtn" class="role-btn admin-role">管理员</button>
+                  </div>
+              </div>
+          </div>
+
+          <!-- 管理员登录模态框 -->
+          <div id="adminLogin" class="modal">
+              <div class="modal-content">
+                  <h2>管理员登录</h2>
+                  <input type="password" id="adminPassword" placeholder="请输入管理员密码" />
+                  <div class="modal-buttons">
+                      <button id="adminLoginBtn">登录</button>
+                      <button id="adminCancelBtn">取消</button>
+                  </div>
+              </div>
+          </div>
+
+          <!-- 主应用容器 -->
+          <div class="container">
+              <header>
+                  <div class="logo">排队系统</div>
+                  <nav>
+                      <ul>
+                          <li><a href="#" class="active">队列</a></li>
+                      </ul>
+                  </nav>
+              </header>
+
+              <h1 class="section-title">加入队列</h1>
+              
+              <section class="queue-form">
+                  <div class="form-group">
+                      <input type="text" id="nameInput" placeholder="输入您的姓名" />
+                      <button id="joinQueueBtn">加入队列</button>
+                  </div>
+              </section>
+
+              <div class="queue-info">
+                  <div class="queue-count-container">
+                      当前排队人数: <span id="queueCount">0</span>
+                  </div>
+                  <div id="connectionStatus" class="connection-status disconnected">
+                      未连接
+                  </div>
+              </div>
+
+              <section class="queue-list-container">
+                  <h2 class="section-title">当前队列</h2>
+                  <div id="queueList" class="queue-list"></div>
+              </section>
+          </div>
+
+          <!-- 通知容器 -->
+          <div id="notificationContainer" class="notification-container"></div>
+
+          <!-- 管理员控制按钮模板 -->
+          <template id="adminControlsTemplate">
+              <div class="admin-controls">
+                  <button class="move-up-btn"><i class="fas fa-arrow-up"></i></button>
+                  <button class="move-down-btn"><i class="fas fa-arrow-down"></i></button>
+                  <button class="remove-btn"><i class="fas fa-times"></i></button>
+              </div>
+          </template>
+
           <script>
-              // 这里添加所有JavaScript代码...
+              // 声明全局变量
+              let socket;
+              let reconnectAttempts = 0;
+              const maxReconnectAttempts = 5;
+              const reconnectDelay = 3000; // 3秒
+              let isAdmin = false;
+              let currentUserId = null;
+              let pendingAdminAuth = null;
+              
+              // 获取DOM元素
+              const nameInput = document.getElementById('nameInput');
+              const joinQueueBtn = document.getElementById('joinQueueBtn');
+              const queueList = document.getElementById('queueList');
+              const queueCount = document.getElementById('queueCount');
+              const connectionStatus = document.getElementById('connectionStatus');
+              const roleSelection = document.getElementById('roleSelection');
+              const userRoleBtn = document.getElementById('userRoleBtn');
+              const adminRoleBtn = document.getElementById('adminRoleBtn');
+              const adminLogin = document.getElementById('adminLogin');
+              const adminPassword = document.getElementById('adminPassword');
+              const adminLoginBtn = document.getElementById('adminLoginBtn');
+              const adminCancelBtn = document.getElementById('adminCancelBtn');
+              const container = document.querySelector('.container');
+              const notificationContainer = document.getElementById('notificationContainer');
+              
+              // 初始化
+              if (container) container.style.visibility = 'hidden';
+              
+              // 角色选择处理
+              userRoleBtn.addEventListener('click', () => {
+                  isAdmin = false;
+                  roleSelection.style.display = 'none';
+                  currentUserId = 'user_' + Date.now();
+                  container.style.visibility = 'visible';
+                  connectWebSocket();
+              });
+              
+              adminRoleBtn.addEventListener('click', () => {
+                  adminLogin.style.display = 'flex';
+              });
+              
+              adminLoginBtn.addEventListener('click', () => {
+                  const password = adminPassword.value;
+                  if (password) {
+                      pendingAdminAuth = password;
+                      connectWebSocket();
+                  } else {
+                      showNotification('请输入密码', 'error');
+                  }
+              });
+              
+              adminCancelBtn.addEventListener('click', () => {
+                  adminPassword.value = '';
+                  adminLogin.style.display = 'none';
+              });
+
+              // 添加加入队列按钮监听器
+              if (joinQueueBtn) {
+                  joinQueueBtn.addEventListener('click', joinQueue);
+              }
+
+              // WebSocket连接
+              function connectWebSocket() {
+                  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                  const wsUrl = \`\${protocol}//\${window.location.host}\`;
+                  console.log("连接到WebSocket:", wsUrl);
+                  
+                  socket = new WebSocket(wsUrl);
+                  
+                  socket.onopen = () => {
+                      console.log("WebSocket连接已建立");
+                      connectionStatus.textContent = '已连接';
+                      connectionStatus.className = 'connection-status connected';
+                      reconnectAttempts = 0;
+                      
+                      if (pendingAdminAuth) {
+                          socket.send(JSON.stringify({
+                              type: 'adminAuth',
+                              password: pendingAdminAuth
+                          }));
+                          pendingAdminAuth = null;
+                      }
+                      
+                      socket.send(JSON.stringify({ type: 'getQueue' }));
+                  };
+                  
+                  // 其他WebSocket事件处理...
+              }
+              
+              // 更多函数...
           </script>
       </body>
       </html>`;
