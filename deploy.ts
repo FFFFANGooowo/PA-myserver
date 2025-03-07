@@ -193,13 +193,38 @@ serve(async (req) => {
           <title>等候系统 | Queue System</title>
           <style>
               /* 全局样式 */
-              body {
+              html, body {
                   font-family: "Source Han Serif", "Fangzheng Songti", serif;
                   margin: 0;
                   padding: 0;
                   background-color: #FAF9F6;
                   color: #4A3F35;
                   font-weight: 600;
+                  height: 100%; /* 确保html和body占满高度 */
+              }
+
+              /* 页面布局 - 添加flex布局使页脚固定在底部 */
+              body {
+                  display: flex;
+                  flex-direction: column;
+                  min-height: 100vh; /* 至少占满视窗高度 */
+              }
+
+              .page-content {
+                  flex: 1 0 auto; /* 内容区域自动增长 */
+              }
+
+              /* 页脚固定样式 */
+              footer {
+                  flex-shrink: 0; /* 防止页脚被压缩 */
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  padding: 20px;
+                  background-color: #4A3F35; 
+                  color: #FAF9F6;
+                  border-top: 1px solid #ccc;
+                  margin-top: auto; /* 将页脚推到底部 */
               }
 
               a {
@@ -648,7 +673,7 @@ serve(async (req) => {
                   }
               }
 
-              /* 添加弹窗样式 */
+              /* 联系方式弹窗样式 */
               .contact-modal {
                   display: none;
                   position: fixed;
@@ -685,27 +710,6 @@ serve(async (req) => {
               .close-modal:hover {
                   color: #000;
               }
-              
-              /* 页脚样式 */
-              footer {
-                  display: flex;
-                  justify-content: space-between;
-                  align-items: center;
-                  padding: 20px;
-                  background-color: #4A3F35;
-                  color: #FAF9F6;
-                  border-top: 1px solid #ccc;
-                  margin-top: 40px;
-              }
-              
-              .social-link {
-                  color: #FAF9F6;
-                  transition: color 0.3s;
-              }
-              
-              .social-link:hover {
-                  color: #D3CEC4;
-              }
           </style>
           <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
       </head>
@@ -721,81 +725,72 @@ serve(async (req) => {
               </nav>
           </header>
 
-          <!-- 角色选择界面 -->
-          <div id="roleSelection" class="role-selection">
-              <div class="role-container">
-                  <h2>请选择您的角色</h2>
-                  <div class="role-buttons">
-                      <button id="userRoleBtn" class="role-btn user-role">用户</button>
-                      <button id="adminRoleBtn" class="role-btn admin-role">管理员</button>
+          <!-- 页面主要内容区域 -->
+          <div class="page-content">
+              <!-- 角色选择界面 -->
+              <div id="roleSelection" class="role-selection">
+                  <div class="role-container">
+                      <h2>请选择您的角色</h2>
+                      <div class="role-buttons">
+                          <button id="userRoleBtn" class="role-btn user-role">用户</button>
+                          <button id="adminRoleBtn" class="role-btn admin-role">管理员</button>
+                      </div>
                   </div>
+              </div>
+
+              <!-- 管理员登录模态框 -->
+              <div id="adminLogin" class="modal">
+                  <div class="modal-content">
+                      <h2>管理员登录</h2>
+                      <input type="password" id="adminPassword" placeholder="请输入管理员密码" />
+                      <div class="modal-buttons">
+                          <button id="adminLoginBtn">登录</button>
+                          <button id="adminCancelBtn">取消</button>
+                      </div>
+                  </div>
+              </div>
+
+              <!-- 主应用容器 -->
+              <div class="container">
+                  <header>
+                      <div class="logo">排队系统</div>
+                      <nav>
+                          <ul>
+                              <li><a href="#" class="active">队列</a></li>
+                          </ul>
+                      </nav>
+                  </header>
+
+                  <h1 class="section-title">加入队列</h1>
+                  
+                  <section class="queue-form">
+                      <div class="form-group">
+                          <input type="text" id="nameInput" placeholder="输入您的姓名" />
+                          <button id="joinQueueBtn">加入队列</button>
+                      </div>
+                  </section>
+
+                  <div class="queue-info">
+                      <div class="queue-count-container">
+                          当前排队人数: <span id="queueCount">0</span>
+                      </div>
+                      <div id="connectionStatus" class="connection-status disconnected">
+                          未连接
+                      </div>
+                      <div id="loadingSpinner" class="loading-spinner" style="display: none;"></div>
+                  </div>
+
+                  <section class="queue-list-container">
+                      <h2 class="section-title">当前队列</h2>
+                      <div id="queueList" class="queue-list">
+                          <!-- 队列项目将在这里动态生成 -->
+                      </div>
+                  </section>
               </div>
           </div>
 
-          <!-- 管理员登录模态框 -->
-          <div id="adminLogin" class="modal">
-              <div class="modal-content">
-                  <h2>管理员登录</h2>
-                  <input type="password" id="adminPassword" placeholder="请输入管理员密码" />
-                  <div class="modal-buttons">
-                      <button id="adminLoginBtn">登录</button>
-                      <button id="adminCancelBtn">取消</button>
-                  </div>
-              </div>
-          </div>
-
-          <!-- 主应用容器 -->
-          <div class="container">
-              <header>
-                  <div class="logo">排队系统</div>
-                  <nav>
-                      <ul>
-                          <li><a href="#" class="active">队列</a></li>
-                      </ul>
-                  </nav>
-              </header>
-
-              <h1 class="section-title">加入队列</h1>
-              
-              <section class="queue-form">
-                  <div class="form-group">
-                      <input type="text" id="nameInput" placeholder="输入您的姓名" />
-                      <button id="joinQueueBtn">加入队列</button>
-                  </div>
-              </section>
-
-              <div class="queue-info">
-                  <div class="queue-count-container">
-                      当前排队人数: <span id="queueCount">0</span>
-                  </div>
-                  <div id="connectionStatus" class="connection-status disconnected">
-                      未连接
-                  </div>
-                  <div id="loadingSpinner" class="loading-spinner" style="display: none;"></div>
-              </div>
-
-              <section class="queue-list-container">
-                  <h2 class="section-title">当前队列</h2>
-                  <div id="queueList" class="queue-list">
-                      <!-- 队列项目将在这里动态生成 -->
-                  </div>
-              </section>
-          </div>
-
-          <!-- 通知容器 -->
-          <div id="notificationContainer" class="notification-container"></div>
-
-          <!-- 管理员控制按钮模板 -->
-          <template id="adminControlsTemplate">
-              <div class="admin-controls">
-                  <button class="move-up-btn"><i class="fas fa-arrow-up"></i></button>
-                  <button class="move-down-btn"><i class="fas fa-arrow-down"></i></button>
-                  <button class="remove-btn"><i class="fas fa-times"></i></button>
-              </div>
-          </template>
-
-          <!-- 在HTML末尾添加页脚 -->
-          <footer style="display: flex; justify-content: space-between; align-items: center; padding: 20px; background-color: #4A3F35; color: #FAF9F6; border-top: 1px solid #ccc; margin-top: 40px;">
+          <!-- 页脚 -->
+          <footer>
               <div class="footer-left" style="font-size: 14px; color: #FAF9F6;">
                   &copy; 2025 萨慕堏. 保留所有权利.
               </div>
@@ -818,7 +813,7 @@ serve(async (req) => {
               </div>
           </footer>
 
-          <!-- 添加联系信息弹窗 -->
+          <!-- 联系信息弹窗 -->
           <div id="contactModal" class="contact-modal">
               <div class="modal-content">
                   <span class="close-modal">&times;</span>
