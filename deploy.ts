@@ -185,14 +185,38 @@ serve(async (req) => {
   
   try {
     if (requestPath === "/index.html") {
-      // 从GitHub获取HTML文件
-      const response = await fetch(`${GITHUB_RAW_URL}/index.html`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch index.html: ${response.status}`);
-      }
+      // 使用内联的HTML代码替代从GitHub获取
+      const html = `<!DOCTYPE html>
+      <html lang="zh-CN">
+      <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>等候系统 | Queue System</title>
+          <style>
+              /* 全局样式 */
+              body {
+                  font-family: "Source Han Serif", "Fangzheng Songti", serif;
+                  margin: 0;
+                  padding: 0;
+                  background-color: #FAF9F6;
+                  color: #4A3F35;
+                  font-weight: 600;
+              }
+              
+              /* 这里添加所有CSS样式... */
+          </style>
+          <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+      </head>
+      <body>
+          <!-- 这里添加所有HTML内容... -->
+          
+          <script>
+              // 这里添加所有JavaScript代码...
+          </script>
+      </body>
+      </html>`;
       
-      const htmlContent = await response.text();
-      return new Response(htmlContent, {
+      return new Response(html, {
         headers: { "content-type": "text/html" },
       });
     }
