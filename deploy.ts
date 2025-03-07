@@ -221,6 +221,42 @@ serve(async (req) => {
       });
     }
     
+    if (requestPath === "/test.html") {
+      const testHtml = `<!DOCTYPE html>
+      <html lang="zh-CN">
+      <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>测试页面</title>
+          <style>
+              /* 全局样式 */
+              body {
+                  font-family: "Source Han Serif", "Fangzheng Songti", serif;
+                  margin: 0;
+                  padding: 0;
+                  background-color: #FAF9F6;
+                  color: #4A3F35;
+                  font-weight: 600;
+              }
+              
+              /* 这里添加所有CSS样式... */
+          </style>
+          <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+      </head>
+      <body>
+          <!-- 这里添加所有HTML内容... -->
+          
+          <script>
+              // 这里添加所有JavaScript代码...
+          </script>
+      </body>
+      </html>`;
+      
+      return new Response(testHtml, {
+        headers: { "content-type": "text/html" },
+      });
+    }
+    
     // 处理其他静态文件请求
     const response = await fetch(`${GITHUB_RAW_URL}${requestPath}`);
     if (!response.ok) {

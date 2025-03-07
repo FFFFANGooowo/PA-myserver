@@ -504,38 +504,61 @@
     </template>
 
     <script>
-        // 角色管理变量
-        let isAdmin = false;
-        let currentUserId = null;
-        let pendingAdminAuth = null;
+        // 简单的调试检查
+        console.log("JavaScript正在运行");
+        
+        // 在HTML加载完成后执行
+        window.onload = function() {
+            console.log("页面完全加载");
+            document.body.innerHTML += '<div style="position:fixed;top:10px;left:10px;background:red;color:white;padding:10px;">页面已加载</div>';
+            
+            const roleSelection = document.getElementById('roleSelection');
+            if (roleSelection) {
+                console.log("找到角色选择界面");
+                roleSelection.style.display = 'flex';
+                roleSelection.style.zIndex = '9999';
+            } else {
+                console.log("未找到角色选择界面");
+            }
+        };
 
-        // WebSocket连接
+        // 声明全局变量 - 必须在使用前声明
         let socket;
         let reconnectAttempts = 0;
         const maxReconnectAttempts = 5;
         const reconnectDelay = 3000; // 3秒
-
-        // DOM 元素
-        const nameInput = document.getElementById('nameInput');
-        const joinQueueBtn = document.getElementById('joinQueueBtn');
-        const queueList = document.getElementById('queueList');
-        const queueCount = document.getElementById('queueCount');
-        const connectionStatus = document.getElementById('connectionStatus');
-        const loadingSpinner = document.getElementById('loadingSpinner');
-        const notificationContainer = document.getElementById('notificationContainer');
-        const roleSelection = document.getElementById('roleSelection');
-        const userRoleBtn = document.getElementById('userRoleBtn');
-        const adminRoleBtn = document.getElementById('adminRoleBtn');
-        const adminLogin = document.getElementById('adminLogin');
-        const adminPassword = document.getElementById('adminPassword');
-        const adminLoginBtn = document.getElementById('adminLoginBtn');
-        const adminCancelBtn = document.getElementById('adminCancelBtn');
-        const container = document.querySelector('.container');
-
-        // 页面初始化
+        let isAdmin = false;
+        let currentUserId = null;
+        let pendingAdminAuth = null;
+        
+        // 页面完全加载后执行
         document.addEventListener('DOMContentLoaded', function() {
-            // 默认隐藏主容器直到角色选择完成
+            console.log("DOM加载完成");
+            
+            // 获取DOM元素
+            const nameInput = document.getElementById('nameInput');
+            const joinQueueBtn = document.getElementById('joinQueueBtn');
+            const queueList = document.getElementById('queueList');
+            const queueCount = document.getElementById('queueCount');
+            const connectionStatus = document.getElementById('connectionStatus');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            const notificationContainer = document.getElementById('notificationContainer');
+            const roleSelection = document.getElementById('roleSelection');
+            const userRoleBtn = document.getElementById('userRoleBtn');
+            const adminRoleBtn = document.getElementById('adminRoleBtn');
+            const adminLogin = document.getElementById('adminLogin');
+            const adminPassword = document.getElementById('adminPassword');
+            const adminLoginBtn = document.getElementById('adminLoginBtn');
+            const adminCancelBtn = document.getElementById('adminCancelBtn');
+            const container = document.querySelector('.container');
+            
+            // 输出DOM元素获取状态
+            console.log("角色选择界面:", roleSelection ? "已找到" : "未找到");
+            console.log("主容器:", container ? "已找到" : "未找到");
+            
+            // 确保主容器初始隐藏，角色选择界面可见
             if (container) container.style.visibility = 'hidden';
+            if (roleSelection) roleSelection.style.display = 'flex';
             
             // 角色选择处理
             userRoleBtn.addEventListener('click', () => {
