@@ -185,7 +185,6 @@ serve(async (req) => {
   
   try {
     if (requestPath === "/index.html") {
-      // 使用完整的HTML内容，不是占位符
       const html = `<!DOCTYPE html>
       <html lang="zh-CN">
       <head>
@@ -222,8 +221,228 @@ serve(async (req) => {
                   font-weight: bold;
               }
 
-              /* 更多CSS样式... */
-              
+              nav ul {
+                  list-style: none;
+                  display: flex;
+                  gap: 20px;
+                  margin: 0;
+                  padding: 0;
+              }
+
+              nav ul li a {
+                  padding: 8px 15px;
+                  border-radius: 4px;
+                  transition: background-color 0.3s;
+              }
+
+              nav ul li a.active, nav ul li a:hover {
+                  background-color: #4A3F35;
+                  color: #FAF9F6;
+              }
+
+              /* 主容器样式 */
+              .container {
+                  max-width: 1200px;
+                  margin: 40px auto;
+                  padding: 0 20px;
+              }
+
+              /* 标题样式 */
+              .section-title {
+                  font-size: 32px;
+                  margin-bottom: 20px;
+                  text-align: center;
+                  color: #4A3F35;
+              }
+
+              /* 队列表单样式 */
+              .queue-form {
+                  background-color: white;
+                  padding: 30px;
+                  border-radius: 15px;
+                  box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+                  margin-bottom: 40px;
+              }
+
+              .form-group {
+                  display: flex;
+                  gap: 10px;
+                  margin-bottom: 20px;
+              }
+
+              .form-group input {
+                  flex: 1;
+                  padding: 15px;
+                  border: 2px solid #E5E5E5;
+                  border-radius: 8px;
+                  font-size: 16px;
+                  transition: border-color 0.3s;
+              }
+
+              .form-group input:focus {
+                  border-color: #4A3F35;
+                  outline: none;
+              }
+
+              .form-group button {
+                  padding: 15px 30px;
+                  background-color: #4A3F35;
+                  color: #FAF9F6;
+                  border: none;
+                  border-radius: 8px;
+                  font-size: 16px;
+                  cursor: pointer;
+                  transition: background-color 0.3s;
+              }
+
+              .form-group button:hover {
+                  background-color: #2F4F4F;
+              }
+
+              /* 队列信息样式 */
+              .queue-info {
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  margin-bottom: 20px;
+              }
+
+              .queue-count-container {
+                  background-color: white;
+                  padding: 15px 25px;
+                  border-radius: 8px;
+                  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+              }
+
+              .connection-status {
+                  padding: 10px 20px;
+                  border-radius: 8px;
+                  font-weight: bold;
+              }
+
+              .connected {
+                  background-color: #27ae60;
+                  color: white;
+              }
+
+              .disconnected {
+                  background-color: #e74c3c;
+                  color: white;
+              }
+
+              .connecting {
+                  background-color: #f39c12;
+                  color: white;
+              }
+
+              /* 队列列表样式 */
+              .queue-list-container {
+                  background-color: white;
+                  padding: 30px;
+                  border-radius: 15px;
+                  box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+              }
+
+              .queue-item {
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  padding: 15px;
+                  border-bottom: 1px solid #E5E5E5;
+                  transition: background-color 0.3s;
+              }
+
+              .queue-item:last-child {
+                  border-bottom: none;
+              }
+
+              .queue-item:hover {
+                  background-color: #F5F5F5;
+              }
+
+              .queue-position {
+                  display: inline-block;
+                  width: 32px;
+                  height: 32px;
+                  line-height: 32px;
+                  text-align: center;
+                  background-color: #4A3F35;
+                  color: white;
+                  border-radius: 50%;
+                  margin-right: 15px;
+              }
+
+              .person-name {
+                  font-weight: bold;
+                  flex: 1;
+              }
+
+              .wait-time {
+                  color: #7f8c8d;
+                  margin-left: 15px;
+                  text-align: right;
+              }
+
+              /* 通知样式 */
+              .notification-container {
+                  position: fixed;
+                  top: 20px;
+                  right: 20px;
+                  z-index: 1000;
+              }
+
+              .notification {
+                  background-color: white;
+                  padding: 15px 25px;
+                  margin-bottom: 10px;
+                  border-radius: 8px;
+                  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+                  animation: slideIn 0.3s forwards;
+                  transition: opacity 0.3s, transform 0.3s;
+                  opacity: 1;
+              }
+
+              .notification.success {
+                  border-left: 4px solid #27ae60;
+              }
+
+              .notification.error {
+                  border-left: 4px solid #e74c3c;
+              }
+
+              .notification.info {
+                  border-left: 4px solid #3498db;
+              }
+
+              @keyframes slideIn {
+                  from {
+                      transform: translateX(100%);
+                      opacity: 0;
+                  }
+                  to {
+                      transform: translateX(0);
+                      opacity: 1;
+                  }
+              }
+
+              /* 加载动画 */
+              .loading-spinner {
+                  border: 4px solid rgba(0, 0, 0, 0.1);
+                  border-left-color: #4A3F35;
+                  border-radius: 50%;
+                  width: 20px;
+                  height: 20px;
+                  animation: spin 1s linear infinite;
+                  display: inline-block;
+                  vertical-align: middle;
+                  margin-left: 10px;
+              }
+
+              @keyframes spin {
+                  0% { transform: rotate(0deg); }
+                  100% { transform: rotate(360deg); }
+              }
+
               /* 角色选择界面 */
               .role-selection {
                   position: fixed;
@@ -246,6 +465,187 @@ serve(async (req) => {
                   text-align: center;
                   max-width: 400px;
                   width: 90%;
+              }
+
+              .role-buttons {
+                  display: flex;
+                  gap: 20px;
+                  margin-top: 30px;
+                  justify-content: center;
+              }
+
+              .role-btn {
+                  padding: 15px 30px;
+                  border: none;
+                  border-radius: 8px;
+                  font-size: 16px;
+                  cursor: pointer;
+                  transition: background-color 0.3s;
+                  width: 120px;
+              }
+
+              .user-role {
+                  background-color: #3498db;
+                  color: white;
+              }
+
+              .user-role:hover {
+                  background-color: #2980b9;
+              }
+
+              .admin-role {
+                  background-color: #e74c3c;
+                  color: white;
+              }
+
+              .admin-role:hover {
+                  background-color: #c0392b;
+              }
+
+              /* 模态框样式 */
+              .modal {
+                  display: none;
+                  position: fixed;
+                  top: 0;
+                  left: 0;
+                  width: 100%;
+                  height: 100%;
+                  background-color: rgba(0,0,0,0.5);
+                  z-index: 2000;
+                  justify-content: center;
+                  align-items: center;
+              }
+
+              .modal-content {
+                  background-color: white;
+                  padding: 30px;
+                  border-radius: 15px;
+                  box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+                  max-width: 400px;
+                  width: 90%;
+              }
+
+              .modal-content h2 {
+                  margin-top: 0;
+                  margin-bottom: 20px;
+                  text-align: center;
+              }
+
+              .modal-content input {
+                  width: 100%;
+                  padding: 15px;
+                  border: 2px solid #E5E5E5;
+                  border-radius: 8px;
+                  font-size: 16px;
+                  margin-bottom: 20px;
+                  box-sizing: border-box;
+              }
+
+              .modal-buttons {
+                  display: flex;
+                  justify-content: center;
+                  gap: 15px;
+              }
+
+              .modal-buttons button {
+                  padding: 12px 25px;
+                  border: none;
+                  border-radius: 8px;
+                  cursor: pointer;
+                  font-size: 16px;
+                  transition: background-color 0.3s;
+              }
+
+              #adminLoginBtn {
+                  background-color: #4A3F35;
+                  color: white;
+              }
+
+              #adminLoginBtn:hover {
+                  background-color: #2F4F4F;
+              }
+
+              #adminCancelBtn {
+                  background-color: #E5E5E5;
+                  color: #4A3F35;
+              }
+
+              #adminCancelBtn:hover {
+                  background-color: #D3D3D3;
+              }
+
+              /* 管理员控制按钮 */
+              .admin-controls {
+                  display: flex;
+                  gap: 10px;
+              }
+
+              .admin-controls button {
+                  background-color: #E5E5E5;
+                  color: #4A3F35;
+                  border: none;
+                  border-radius: 5px;
+                  width: 36px;
+                  height: 36px;
+                  display: flex;
+                  justify-content: center;
+                  align-items: center;
+                  cursor: pointer;
+                  transition: background-color 0.3s;
+              }
+
+              .admin-controls button:hover {
+                  background-color: #D3D3D3;
+              }
+
+              .admin-controls button:disabled {
+                  opacity: 0.5;
+                  cursor: not-allowed;
+              }
+
+              .remove-btn:hover {
+                  background-color: #e74c3c !important;
+                  color: white;
+              }
+
+              /* 离开队列按钮 */
+              .leave-btn {
+                  padding: 8px 15px;
+                  background-color: #e74c3c;
+                  color: white;
+                  border: none;
+                  border-radius: 8px;
+                  cursor: pointer;
+                  transition: background-color 0.3s;
+              }
+
+              .leave-btn:hover {
+                  background-color: #c0392b;
+              }
+
+              /* 空队列消息 */
+              .empty-queue-message {
+                  padding: 20px;
+                  text-align: center;
+                  color: #7f8c8d;
+                  font-style: italic;
+              }
+
+              /* 响应式设计 */
+              @media (max-width: 768px) {
+                  .form-group {
+                      flex-direction: column;
+                  }
+                  
+                  .queue-info {
+                      flex-direction: column;
+                      gap: 15px;
+                      align-items: flex-start;
+                  }
+                  
+                  .queue-count-container, .connection-status {
+                      width: 100%;
+                  }
               }
           </style>
           <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
@@ -301,11 +701,14 @@ serve(async (req) => {
                   <div id="connectionStatus" class="connection-status disconnected">
                       未连接
                   </div>
+                  <div id="loadingSpinner" class="loading-spinner" style="display: none;"></div>
               </div>
 
               <section class="queue-list-container">
                   <h2 class="section-title">当前队列</h2>
-                  <div id="queueList" class="queue-list"></div>
+                  <div id="queueList" class="queue-list">
+                      <!-- 队列项目将在这里动态生成 -->
+                  </div>
               </section>
           </div>
 
@@ -322,6 +725,9 @@ serve(async (req) => {
           </template>
 
           <script>
+              // 简单的调试检查
+              console.log("JavaScript正在运行");
+              
               // 声明全局变量
               let socket;
               let reconnectAttempts = 0;
@@ -331,60 +737,102 @@ serve(async (req) => {
               let currentUserId = null;
               let pendingAdminAuth = null;
               
-              // 获取DOM元素
-              const nameInput = document.getElementById('nameInput');
-              const joinQueueBtn = document.getElementById('joinQueueBtn');
-              const queueList = document.getElementById('queueList');
-              const queueCount = document.getElementById('queueCount');
-              const connectionStatus = document.getElementById('connectionStatus');
-              const roleSelection = document.getElementById('roleSelection');
-              const userRoleBtn = document.getElementById('userRoleBtn');
-              const adminRoleBtn = document.getElementById('adminRoleBtn');
-              const adminLogin = document.getElementById('adminLogin');
-              const adminPassword = document.getElementById('adminPassword');
-              const adminLoginBtn = document.getElementById('adminLoginBtn');
-              const adminCancelBtn = document.getElementById('adminCancelBtn');
-              const container = document.querySelector('.container');
-              const notificationContainer = document.getElementById('notificationContainer');
-              
-              // 初始化
-              if (container) container.style.visibility = 'hidden';
-              
-              // 角色选择处理
-              userRoleBtn.addEventListener('click', () => {
-                  isAdmin = false;
-                  roleSelection.style.display = 'none';
-                  currentUserId = 'user_' + Date.now();
-                  container.style.visibility = 'visible';
-                  connectWebSocket();
-              });
-              
-              adminRoleBtn.addEventListener('click', () => {
-                  adminLogin.style.display = 'flex';
-              });
-              
-              adminLoginBtn.addEventListener('click', () => {
-                  const password = adminPassword.value;
-                  if (password) {
-                      pendingAdminAuth = password;
-                      connectWebSocket();
-                  } else {
-                      showNotification('请输入密码', 'error');
+              // 在HTML加载完成后执行
+              window.onload = function() {
+                  console.log("页面完全加载");
+                  
+                  // 获取DOM元素
+                  const nameInput = document.getElementById('nameInput');
+                  const joinQueueBtn = document.getElementById('joinQueueBtn');
+                  const queueList = document.getElementById('queueList');
+                  const queueCount = document.getElementById('queueCount');
+                  const connectionStatus = document.getElementById('connectionStatus');
+                  const loadingSpinner = document.getElementById('loadingSpinner');
+                  const notificationContainer = document.getElementById('notificationContainer');
+                  const roleSelection = document.getElementById('roleSelection');
+                  const userRoleBtn = document.getElementById('userRoleBtn');
+                  const adminRoleBtn = document.getElementById('adminRoleBtn');
+                  const adminLogin = document.getElementById('adminLogin');
+                  const adminPassword = document.getElementById('adminPassword');
+                  const adminLoginBtn = document.getElementById('adminLoginBtn');
+                  const adminCancelBtn = document.getElementById('adminCancelBtn');
+                  const container = document.querySelector('.container');
+                  
+                  console.log("角色选择界面:", roleSelection ? "已找到" : "未找到");
+                  console.log("主容器:", container ? "已找到" : "未找到");
+                  
+                  // 确保主容器初始隐藏，角色选择界面可见
+                  if (container) container.style.visibility = 'hidden';
+                  if (roleSelection) roleSelection.style.display = 'flex';
+                  
+                  // 角色选择处理
+                  if (userRoleBtn) {
+                      userRoleBtn.addEventListener('click', function() {
+                          isAdmin = false;
+                          roleSelection.style.display = 'none';
+                          // 生成一个随机用户ID
+                          currentUserId = 'user_' + Date.now();
+                          // 显示主容器
+                          if (container) container.style.visibility = 'visible';
+                          // 连接WebSocket
+                          connectWebSocket();
+                      });
                   }
-              });
+                  
+                  if (adminRoleBtn) {
+                      adminRoleBtn.addEventListener('click', function() {
+                          if (adminLogin) adminLogin.style.display = 'flex';
+                      });
+                  }
+                  
+                  if (adminLoginBtn) {
+                      adminLoginBtn.addEventListener('click', function() {
+                          if (!adminPassword) return;
+                          
+                          const password = adminPassword.value;
+                          if (password) {
+                              pendingAdminAuth = password;
+                              roleSelection.style.display = 'none';
+                              container.style.visibility = 'visible';
+                              connectWebSocket();
+                          } else {
+                              showNotification('请输入密码', 'error');
+                          }
+                      });
+                  }
+                  
+                  if (adminCancelBtn) {
+                      adminCancelBtn.addEventListener('click', function() {
+                          if (adminPassword) adminPassword.value = '';
+                          if (adminLogin) adminLogin.style.display = 'none';
+                      });
+                  }
+                  
+                  // 添加加入队列按钮监听器
+                  if (joinQueueBtn) {
+                      joinQueueBtn.addEventListener('click', joinQueue);
+                  }
+                  
+                  // 添加回车键监听器
+                  if (nameInput) {
+                      nameInput.addEventListener('keypress', function(e) {
+                          if (e.key === 'Enter') {
+                              joinQueue();
+                          }
+                      });
+                  }
+              };
               
-              adminCancelBtn.addEventListener('click', () => {
-                  adminPassword.value = '';
-                  adminLogin.style.display = 'none';
-              });
-
-              // 添加加入队列按钮监听器
-              if (joinQueueBtn) {
-                  joinQueueBtn.addEventListener('click', joinQueue);
-              }
-
-              // WebSocket连接
+              // 连接 WebSocket
               function connectWebSocket() {
+                  // 获取DOM元素
+                  const connectionStatus = document.getElementById('connectionStatus');
+                  const loadingSpinner = document.getElementById('loadingSpinner');
+                  
+                  // 显示加载动画
+                  if (loadingSpinner) loadingSpinner.style.display = 'block';
+                  
+                  // 创建相对路径的WebSocket连接
                   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
                   const wsUrl = \`\${protocol}//\${window.location.host}\`;
                   console.log("连接到WebSocket:", wsUrl);
@@ -393,10 +841,14 @@ serve(async (req) => {
                   
                   socket.onopen = () => {
                       console.log("WebSocket连接已建立");
-                      connectionStatus.textContent = '已连接';
-                      connectionStatus.className = 'connection-status connected';
+                      if (connectionStatus) {
+                          connectionStatus.textContent = '已连接';
+                          connectionStatus.className = 'connection-status connected';
+                      }
+                      if (loadingSpinner) loadingSpinner.style.display = 'none';
                       reconnectAttempts = 0;
                       
+                      // 如果是挂起的管理员验证，进行验证
                       if (pendingAdminAuth) {
                           socket.send(JSON.stringify({
                               type: 'adminAuth',
@@ -405,13 +857,247 @@ serve(async (req) => {
                           pendingAdminAuth = null;
                       }
                       
+                      // 获取队列状态
                       socket.send(JSON.stringify({ type: 'getQueue' }));
                   };
                   
-                  // 其他WebSocket事件处理...
+                  socket.onmessage = (event) => {
+                      try {
+                          console.log("收到消息:", event.data);
+                          const data = JSON.parse(event.data);
+                          
+                          if (data.type === 'queueUpdate') {
+                              updateQueueDisplay(data.queue);
+                          } else if (data.type === 'joinSuccess') {
+                              showNotification('成功加入队列!', 'success');
+                          } else if (data.type === 'error') {
+                              showNotification(data.message, 'error');
+                          } else if (data.type === 'success') {
+                              showNotification(data.message, 'success');
+                          } else if (data.type === 'adminAuthSuccess') {
+                              // 管理员登录成功
+                              isAdmin = true;
+                              const adminPassword = document.getElementById('adminPassword');
+                              const adminLogin = document.getElementById('adminLogin');
+                              const roleSelection = document.getElementById('roleSelection');
+                              const container = document.querySelector('.container');
+                              
+                              if (adminPassword) adminPassword.value = '';
+                              if (adminLogin) adminLogin.style.display = 'none';
+                              if (roleSelection) roleSelection.style.display = 'none';
+                              if (container) container.style.visibility = 'visible';
+                              
+                              showNotification('管理员登录成功', 'success');
+                              // 更新队列显示，添加管理员控制
+                              socket.send(JSON.stringify({ type: 'getQueue' }));
+                          }
+                      } catch (error) {
+                          console.error("解析消息出错:", error);
+                      }
+                  };
+                  
+                  socket.onclose = (event) => {
+                      console.log("WebSocket连接已关闭:", event);
+                      if (connectionStatus) {
+                          connectionStatus.textContent = '未连接';
+                          connectionStatus.className = 'connection-status disconnected';
+                      }
+                      
+                      // 尝试重连
+                      if (reconnectAttempts < maxReconnectAttempts) {
+                          if (connectionStatus) {
+                              connectionStatus.textContent = \`正在重连... (\${reconnectAttempts + 1}/\${maxReconnectAttempts})\`;
+                              connectionStatus.className = 'connection-status connecting';
+                          }
+                          reconnectAttempts++;
+                          setTimeout(connectWebSocket, reconnectDelay);
+                      } else {
+                          showNotification('无法连接到服务器，请刷新页面重试', 'error');
+                      }
+                  };
+                  
+                  socket.onerror = (error) => {
+                      console.error("WebSocket错误:", error);
+                      showNotification('连接错误', 'error');
+                  };
               }
-              
-              // 更多函数...
+
+              // 更新队列显示
+              function updateQueueDisplay(queue) {
+                  const queueList = document.getElementById('queueList');
+                  const queueCount = document.getElementById('queueCount');
+                  
+                  if (!queueList || !queueCount) return;
+                  
+                  queueList.innerHTML = '';
+                  queueCount.textContent = queue.length;
+                  
+                  if (queue.length === 0) {
+                      const emptyMessage = document.createElement('div');
+                      emptyMessage.className = 'empty-queue-message';
+                      emptyMessage.textContent = '队列当前为空';
+                      queueList.appendChild(emptyMessage);
+                      return;
+                  }
+                  
+                  queue.forEach((person, index) => {
+                      const listItem = document.createElement('div');
+                      listItem.className = 'queue-item';
+                      
+                      // 队列信息
+                      const queueInfo = document.createElement('div');
+                      queueInfo.className = 'queue-info';
+                      
+                      const position = document.createElement('span');
+                      position.className = 'queue-position';
+                      position.textContent = index + 1;
+                      
+                      const name = document.createElement('span');
+                      name.className = 'person-name';
+                      name.textContent = person.name;
+                      
+                      const waitTime = document.createElement('span');
+                      waitTime.className = 'wait-time';
+                      const joinTime = new Date(person.joinTime);
+                      const waitDuration = Date.now() - joinTime.getTime();
+                      waitTime.textContent = \`等待: \${formatWaitTime(waitDuration)}\`;
+                      
+                      queueInfo.appendChild(position);
+                      queueInfo.appendChild(name);
+                      queueInfo.appendChild(waitTime);
+                      
+                      listItem.appendChild(queueInfo);
+                      
+                      // 添加管理员控制或离开按钮
+                      if (isAdmin) {
+                          const template = document.getElementById('adminControlsTemplate');
+                          if (template) {
+                              const adminControls = template.content.cloneNode(true);
+                              
+                              // 添加事件监听器
+                              const upBtn = adminControls.querySelector('.move-up-btn');
+                              const downBtn = adminControls.querySelector('.move-down-btn');
+                              const removeBtn = adminControls.querySelector('.remove-btn');
+                              
+                              if (upBtn) upBtn.addEventListener('click', () => moveUser(person.id, 'up'));
+                              if (downBtn) downBtn.addEventListener('click', () => moveUser(person.id, 'down'));
+                              if (removeBtn) removeBtn.addEventListener('click', () => removeUser(person.id));
+                              
+                              // 禁用不需要的按钮
+                              if (upBtn && index === 0) upBtn.disabled = true;
+                              if (downBtn && index === queue.length - 1) downBtn.disabled = true;
+                              
+                              listItem.appendChild(adminControls);
+                          }
+                      } 
+                      // 如果是当前用户，添加"离开队列"按钮
+                      else if (person.id === currentUserId) {
+                          const leaveBtn = document.createElement('button');
+                          leaveBtn.className = 'leave-btn';
+                          leaveBtn.innerHTML = '<i class="fas fa-sign-out-alt"></i> 离开';
+                          leaveBtn.addEventListener('click', () => {
+                              leaveQueue(person.id);
+                          });
+                          listItem.appendChild(leaveBtn);
+                      }
+                      
+                      queueList.appendChild(listItem);
+                  });
+              }
+
+              // 管理员控制函数
+              function moveUser(userId, direction) {
+                  if (socket && socket.readyState === WebSocket.OPEN) {
+                      socket.send(JSON.stringify({
+                          type: 'moveUser',
+                          userId: userId,
+                          direction: direction
+                      }));
+                  }
+              }
+
+              function removeUser(userId) {
+                  if (socket && socket.readyState === WebSocket.OPEN) {
+                      socket.send(JSON.stringify({
+                          type: 'removeUser',
+                          userId: userId
+                      }));
+                  }
+              }
+
+              function leaveQueue(userId) {
+                  if (socket && socket.readyState === WebSocket.OPEN) {
+                      socket.send(JSON.stringify({
+                          type: 'leave',
+                          id: userId
+                      }));
+                      currentUserId = null;
+                  }
+              }
+
+              // 加入队列
+              function joinQueue() {
+                  const nameInput = document.getElementById('nameInput');
+                  if (!nameInput) return;
+                  
+                  const name = nameInput.value.trim();
+                  
+                  if (!name) {
+                      showNotification('请输入您的姓名', 'error');
+                      return;
+                  }
+                  
+                  if (socket && socket.readyState === WebSocket.OPEN) {
+                      socket.send(JSON.stringify({
+                          type: 'join',
+                          name: name,
+                          id: currentUserId
+                      }));
+                      nameInput.value = '';
+                  } else {
+                      showNotification('服务器连接失败，请稍后再试', 'error');
+                      // 尝试重新连接
+                      connectWebSocket();
+                  }
+              }
+
+              // 显示通知
+              function showNotification(message, type) {
+                  const notificationContainer = document.getElementById('notificationContainer');
+                  if (!notificationContainer) return;
+                  
+                  const notification = document.createElement('div');
+                  notification.className = \`notification \${type}\`;
+                  notification.textContent = message;
+                  
+                  notificationContainer.appendChild(notification);
+                  
+                  // 3秒后自动移除通知
+                  setTimeout(() => {
+                      notification.style.opacity = '0';
+                      notification.style.transform = 'translateX(100%)';
+                      
+                      // 动画完成后移除元素
+                      setTimeout(() => {
+                          notification.remove();
+                      }, 300);
+                  }, 3000);
+              }
+
+              // 格式化等待时间
+              function formatWaitTime(ms) {
+                  const seconds = Math.floor(ms / 1000);
+                  const minutes = Math.floor(seconds / 60);
+                  const hours = Math.floor(minutes / 60);
+                  
+                  if (hours > 0) {
+                      return \`\${hours}小时\${minutes % 60}分钟\`;
+                  } else if (minutes > 0) {
+                      return \`\${minutes}分钟\${seconds % 60}秒\`;
+                  } else {
+                      return \`\${seconds}秒\`;
+                  }
+              }
           </script>
       </body>
       </html>`;
