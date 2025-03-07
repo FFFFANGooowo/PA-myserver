@@ -27,6 +27,11 @@ serve(async (req) => {
     try {
       const { socket, response } = Deno.upgradeWebSocket(req);
       
+      // 确保所有网络错误都被捕获
+      socket.onerror = (e) => {
+        console.error("WebSocket error:", e);
+      };
+      
       // 添加WebSocket事件处理
       socket.onopen = () => {
         console.log("客户端已连接");
@@ -155,8 +160,8 @@ serve(async (req) => {
       
       return response;
     } catch (e) {
-      console.error(`WebSocket升级失败: ${e.message}`);
-      return new Response(`WebSocket升级失败: ${e.message}`, { status: 500 });
+      console.error("WebSocket upgrade error:", e);
+      return new Response(`WebSocket upgrade failed: ${e.message}`, { status: 400 });
     }
   }
   
@@ -221,34 +226,45 @@ serve(async (req) => {
     <!-- ... 所有HTML内容 ... -->
 
     <script>
-        // 客户端 WebSocket 连接
+        // 确保变量在被使用前已定义
         let socket;
         let reconnectAttempts = 0;
-        const maxReconnectAttempts = 5;
-        const reconnectDelay = 3000; // 3秒
-
-        // DOM 元素
-        const nameInput = document.getElementById('nameInput');
-        const joinQueueBtn = document.getElementById('joinQueueBtn');
-        const queueList = document.getElementById('queueList');
-        const queueCount = document.getElementById('queueCount');
-        const connectionStatus = document.getElementById('connectionStatus');
-        const loadingSpinner = document.getElementById('loadingSpinner');
-
-        // 连接 WebSocket
-        function connectWebSocket() {
-            // 显示加载动画
-            loadingSpinner.style.display = 'block';
+        let isAdmin = false;
+        let currentUserId = null;
+        let pendingAdminAuth = null;
+        
+        // 确保 DOM 元素引用不会为 null
+        function initializeApp() {
+            const nameInput = document.getElementById('nameInput');
+            const joinQueueBtn = document.getElementById('joinQueueBtn');
+            const queueList = document.getElementById('queueList');
+            const queueCount = document.getElementById('queueCount');
+            const connectionStatus = document.getElementById('connectionStatus');
+            const loadingSpinner = document.getElementById('loadingSpinner');
             
-            // 创建相对路径的WebSocket连接
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = \`\${protocol}//\${window.location.host}\`;
-            socket = new WebSocket(wsUrl);
+            if (!nameInput || !joinQueueBtn || !queueList || !queueCount || !connectionStatus || !loadingSpinner) {
+                console.error("Required DOM elements not found");
+                return;
+            }
             
-            // ... 其余WebSocket代码 ... 
+            // 连接 WebSocket
+            function connectWebSocket() {
+                // 显示加载动画
+                loadingSpinner.style.display = 'block';
+                
+                // 创建相对路径的WebSocket连接
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = \`\${protocol}//\${window.location.host}\`;
+                socket = new WebSocket(wsUrl);
+                
+                // ... 其余WebSocket代码 ... 
+            }
+
+            // ... 复制所有JS代码 ...
         }
-
-        // ... 复制所有JS代码 ...
+        
+        // 在页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', initializeApp);
     </script>
 </body>
 </html>`;
@@ -278,8 +294,13 @@ function broadcastQueue() {
   });
   
   for (const client of clients) {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(message);
+    try {
+      // 使用 readyState 数字值而非常量
+      if (client.readyState === 1) { // OPEN = 1
+        client.send(message);
+      }
+    } catch (e) {
+      console.error("Error broadcasting message:", e);
     }
   }
 }
@@ -295,4 +316,26 @@ setInterval(() => {
     console.log(`已移除 ${initialLength - queue.length} 个闲置队列项目`);
     broadcastQueue();
   }
-}, 15 * 60 * 1000); 
+}, 15 * 60 * 1000);
+
+// 简化版本的 deploy.ts 用于排查问题
+const basicHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <title>Queue System Test</title>
+</head>
+<body>
+  <h1>Queue System Is Working</h1>
+  <p>This is a basic test page.</p>
+</body>
+</html>`;
+
+// 简化的服务器
+serve((req) => {
+  console.log(`Request: ${req.method} ${new URL(req.url).pathname}`);
+  
+  // 仅返回简单的 HTML 页面
+  return new Response(basicHtml, {
+    headers: { "content-type": "text/html" }
+  });
+}); 
