@@ -316,26 +316,4 @@ setInterval(() => {
     console.log(`已移除 ${initialLength - queue.length} 个闲置队列项目`);
     broadcastQueue();
   }
-}, 15 * 60 * 1000);
-
-// 简化版本的 deploy.ts 用于排查问题
-const basicHtml = `<!DOCTYPE html>
-<html>
-<head>
-  <title>Queue System Test</title>
-</head>
-<body>
-  <h1>Queue System Is Working</h1>
-  <p>This is a basic test page.</p>
-</body>
-</html>`;
-
-// 简化的服务器
-serve((req) => {
-  console.log(`Request: ${req.method} ${new URL(req.url).pathname}`);
-  
-  // 仅返回简单的 HTML 页面
-  return new Response(basicHtml, {
-    headers: { "content-type": "text/html" }
-  });
-}); 
+}, 15 * 60 * 1000); 
