@@ -17,8 +17,8 @@ const ADMIN_PASSWORD = "admin123";
 // 限制队列大小
 const MAX_QUEUE_SIZE = 100;
 
-// GitHub原始文件URL - 替换为你的仓库地址
-const GITHUB_RAW_URL = "https://raw.githubusercontent.com/yourusername/yourrepo/main";
+// 替换为你的真实 GitHub 仓库信息
+const GITHUB_RAW_URL = "https://raw.githubusercontent.com/FFFFANGooowo/PA-myserver/main";
 
 // 处理HTTP请求和WebSocket连接
 serve(async (req) => {
@@ -184,8 +184,8 @@ serve(async (req) => {
   }
   
   try {
-    // 从GitHub获取静态文件
     if (requestPath === "/index.html") {
+      // 从GitHub获取HTML文件
       const response = await fetch(`${GITHUB_RAW_URL}/index.html`);
       if (!response.ok) {
         throw new Error(`Failed to fetch index.html: ${response.status}`);
