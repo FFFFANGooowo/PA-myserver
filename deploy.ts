@@ -176,14 +176,15 @@ serve(async (req) => {
   
   // 静态文件服务
   // 默认提供索引页面
-  if (path === "/" || path === "") {
-    path = "/index.html";
+  let requestPath = path;
+  if (requestPath === "/" || requestPath === "") {
+    requestPath = "/index.html";
   }
   
   try {
     // 这里应该处理静态文件请求
     // 但在 Deno Deploy 中，我们可以内联 HTML
-    if (path === "/index.html") {
+    if (requestPath === "/index.html") {
       // 内联的 HTML 内容
       return new Response(`<!DOCTYPE html>
 <html lang="zh-CN">
@@ -1109,11 +1110,9 @@ serve(async (req) => {
         }
     </script>
 </body>
-</html>`;
-
-      return new Response(html, {
-        headers: { "content-type": "text/html" },
-      });
+</html>`, {
+  headers: { "content-type": "text/html" },
+});
     }
     
     // 对于其他静态资源，你需要手动处理或使用GitHub raw URLs
