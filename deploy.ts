@@ -108,14 +108,23 @@ serve(async (req) => {
     try {
       const { socket, response } = Deno.upgradeWebSocket(req);
       
-      // 确保所有网络错误都被捕获
+      // 添加详细的错误处理
       socket.onerror = (e) => {
-        console.error("WebSocket error:", e);
+        console.error("WebSocket error:", {
+          message: e.message,
+          type: e.type,
+          timestamp: new Date().toISOString(),
+          readyState: socket.readyState,
+          url: socket.url
+        });
       };
       
-      // 添加WebSocket事件处理
+      // 添加连接状态日志
       socket.onopen = () => {
-        console.log("客户端已连接");
+        console.log("客户端已连接", {
+          readyState: socket.readyState,
+          timestamp: new Date().toISOString()
+        });
         clients.add(socket);
         
         // 发送当前队列状态
@@ -125,10 +134,18 @@ serve(async (req) => {
         }));
       };
       
+      // 添加消息处理日志
       socket.onmessage = async (event) => {
         try {
+          console.log("收到WebSocket消息:", {
+            data: event.data,
+            timestamp: new Date().toISOString()
+          });
+          
           const data = JSON.parse(event.data);
-          console.log("收到消息:", data);
+          
+          // 添加消息类型日志
+          console.log("处理消息类型:", data.type);
           
           switch (data.type) {
             case "join":
@@ -391,18 +408,30 @@ serve(async (req) => {
               break;
           }
         } catch (error) {
-          console.error("处理消息时出错:", error);
+          console.error("处理消息时出错:", {
+            error: error.message,
+            stack: error.stack,
+            timestamp: new Date().toISOString()
+          });
         }
       };
       
+      // 添加关闭连接日志
       socket.onclose = () => {
-        console.log("客户端断开连接");
+        console.log("客户端断开连接", {
+          readyState: socket.readyState,
+          timestamp: new Date().toISOString()
+        });
         clients.delete(socket);
       };
       
       return response;
     } catch (e) {
-      console.error("WebSocket连接失败:", e);
+      console.error("WebSocket连接失败:", {
+        error: e.message,
+        stack: e.stack,
+        timestamp: new Date().toISOString()
+      });
       return new Response("WebSocket连接失败", { status: 400 });
     }
   }
