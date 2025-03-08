@@ -23,9 +23,9 @@ const loadQueue = async () => {
 };
 
 // 保存队列到KV存储
-const saveQueue = async () => {
+const saveQueue = async (force: boolean = false) => {
   await kv.set(QUEUE_KEY, queue);
-  console.log(`已保存 ${queue.length} 个队列项目到存储`);
+  console.log(`已保存 ${queue.length} 个队列项目到存储${force ? " (强制保存)" : ""}`);
 };
 
 // 初始加载队列
@@ -113,8 +113,8 @@ serve(async (req) => {
               }
               queue.push(newPerson);
               
-              // 保存队列到KV存储
-              await saveQueue();
+              // 强制保存队列到KV存储
+              await saveQueue(true);
               
               // 通知加入成功
               socket.send(JSON.stringify({
@@ -139,7 +139,8 @@ serve(async (req) => {
               // 离开队列
               if (data.id) {
                 queue = queue.filter((person) => person.id !== data.id);
-                await saveQueue();
+                // 强制保存队列到KV存储
+                await saveQueue(true);
                 broadcastQueue();
               }
               break;
@@ -1418,7 +1419,7 @@ serve(async (req) => {
         /* 全局样式 */
         body {
             margin: 0;
-            padding: 10px; /* 添加全局padding */
+            padding: 0;
             background: transparent;
             color: white;
             font-family: Arial, sans-serif;
@@ -1433,25 +1434,27 @@ serve(async (req) => {
             align-items: center;
             background: rgba(0, 0, 0, 0.7);
             border-radius: 8px;
-            padding: 12px 16px; /* 增加内边距 */
+            padding: 8px;
             margin-bottom: 10px;
         }
 
         .title {
             font-size: 24px;
             font-weight: bold;
-            margin-right: 16px; /* 增加标题和署名间距 */
         }
 
         .byline {
             font-size: 14px;
             opacity: 0.8;
-            white-space: nowrap; /* 防止署名换行 */
         }
 
         /* 队列容器 */
         .queue-container {
+            position: absolute;
+            top: 60px; /* 为标题留出空间 */
+            left: 0;
             width: 100%;
+            padding: 10px;
             box-sizing: border-box;
         }
 
@@ -1462,7 +1465,7 @@ serve(async (req) => {
             margin-bottom: 8px;
             background: rgba(0, 0, 0, 0.7);
             border-radius: 8px;
-            padding: 8px 16px; /* 与标题区域padding一致 */
+            padding: 8px;
         }
 
         /* 位次 */
@@ -1492,20 +1495,18 @@ serve(async (req) => {
         @media (max-width: 480px) {
             body {
                 font-size: 14px;
-                padding: 8px;
             }
             .header {
-                padding: 8px 12px;
+                padding: 6px;
             }
             .title {
                 font-size: 20px;
-                margin-right: 12px;
             }
             .byline {
                 font-size: 12px;
             }
             .queue-item {
-                padding: 6px 12px;
+                padding: 6px;
             }
             .position {
                 width: 30px;
