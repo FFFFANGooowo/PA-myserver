@@ -15,94 +15,17 @@ const QUEUE_KEY = ["queue_data"];
 // 初始化队列（从KV存储加载）
 let queue: QueuePerson[] = [];
 const loadQueue = async () => {
-  try {
-    const entry = await kv.get(QUEUE_KEY);
-    if (entry.value) {
-      // 处理旧格式数据（数组）
-      if (Array.isArray(entry.value)) {
-        console.log("检测到旧格式数据，正在迁移...");
-        queue = entry.value.map(person => ({
-          ...person,
-          joinTime: new Date(person.joinTime)
-        }));
-        
-        // 立即保存为新格式
-        await saveQueue();
-        console.log("数据格式迁移完成");
-      }
-      // 处理新格式数据
-      else {
-        const data = entry.value as { 
-          version: number;
-          lastSaved: string; 
-          items: QueuePerson[] 
-        };
-        
-        // 检查版本号
-        if (data.version !== 2) {
-          console.log("检测到旧版本数据，正在升级...");
-          // 这里可以添加数据迁移逻辑
-          data.version = 2;
-          await saveQueue();
-        }
-        
-        queue = data.items.map(person => ({
-          ...person,
-          joinTime: new Date(person.joinTime)
-        }));
-        console.log(`从存储加载的数据最后保存于: ${data.lastSaved}`);
-      }
-      console.log(`已从存储加载 ${queue.length} 个队列项目`);
-      
-      // 添加详细日志
-      queue.forEach(person => {
-        console.log(`队列项目: ${person.name}, 加入时间: ${person.joinTime.toISOString()}`);
-      });
-    } else {
-      queue = [];
-      console.log("队列为空");
-    }
-  } catch (error) {
-    console.error("加载队列失败:", error);
-    queue = [];
+  const entry = await kv.get(QUEUE_KEY);
+  if (entry.value) {
+    queue = entry.value as QueuePerson[];
+    console.log(`已从存储加载 ${queue.length} 个队列项目`);
   }
 };
 
 // 保存队列到KV存储
-const saveQueue = async (forceEmpty = false) => {
-  try {
-    if (forceEmpty) {
-      await kv.delete(QUEUE_KEY);
-      await kv.set(QUEUE_KEY, {
-        version: 2, // 添加版本号
-        lastSaved: new Date().toISOString(),
-        items: []
-      });
-      queue = [];
-      console.log("已强制清空队列存储");
-    } else {
-      // 使用统一的数据格式
-      const queueToSave = {
-        version: 2, // 添加版本号
-        lastSaved: new Date().toISOString(),
-        items: queue.map(person => ({
-          ...person,
-          joinTime: new Date(person.joinTime).toISOString()
-        }))
-      };
-      
-      await kv.set(QUEUE_KEY, queueToSave);
-      console.log(`已保存 ${queue.length} 个队列项目到存储，时间: ${queueToSave.lastSaved}`);
-      
-      // 添加详细日志
-      queueToSave.items.forEach(person => {
-        console.log(`保存队列项目: ${person.name}, 加入时间: ${person.joinTime}`);
-      });
-    }
-  } catch (error) {
-    console.error("保存队列失败:", error);
-    throw error;
-  }
+const saveQueue = async () => {
+  await kv.set(QUEUE_KEY, queue);
+  console.log(`已保存 ${queue.length} 个队列项目到存储`);
 };
 
 // 初始加载队列
@@ -132,23 +55,14 @@ serve(async (req) => {
     try {
       const { socket, response } = Deno.upgradeWebSocket(req);
       
-      // 添加详细的错误处理
+      // 确保所有网络错误都被捕获
       socket.onerror = (e) => {
-        console.error("WebSocket error:", {
-          message: e.message,
-          type: e.type,
-          timestamp: new Date().toISOString(),
-          readyState: socket.readyState,
-          url: socket.url
-        });
+        console.error("WebSocket error:", e);
       };
       
-      // 添加连接状态日志
+      // 添加WebSocket事件处理
       socket.onopen = () => {
-        console.log("客户端已连接", {
-          readyState: socket.readyState,
-          timestamp: new Date().toISOString()
-        });
+        console.log("客户端已连接");
         clients.add(socket);
         
         // 发送当前队列状态
@@ -158,18 +72,9 @@ serve(async (req) => {
         }));
       };
       
-      // 添加消息处理日志
       socket.onmessage = async (event) => {
         try {
-          console.log("收到WebSocket消息:", {
-            data: event.data,
-            timestamp: new Date().toISOString()
-          });
-          
           const data = JSON.parse(event.data);
-          
-          // 添加消息类型日志
-          console.log("处理消息类型:", data.type);
           
           switch (data.type) {
             case "join":
@@ -198,10 +103,8 @@ serve(async (req) => {
               const newPerson: QueuePerson = {
                 id: Date.now().toString(),
                 name: data.name,
-                joinTime: new Date() // 确保使用新的Date对象
+                joinTime: new Date()
               };
-              
-              console.log(`新用户加入: ${newPerson.name}, 时间: ${newPerson.joinTime.toISOString()}`);
               
               // 添加到队列时检查大小
               if (queue.length >= MAX_QUEUE_SIZE) {
@@ -337,19 +240,24 @@ serve(async (req) => {
               if (data.admin) {
                 try {
                   console.log("管理员正在清空队列");
+                  // 记录之前的队列长度
                   const previousLength = queue.length;
                   
-                  // 使用强制清空模式
-                  await saveQueue(true);
+                  // 清空内存中的队列
+                  queue = [];
                   
-                  // 重新加载确认队列已清空
-                  await loadQueue();
+                  // 彻底删除KV存储中的队列，而不是保存空数组
+                  await kv.delete(QUEUE_KEY);
+                  console.log("已删除KV存储中的队列键");
                   
-                  if (queue.length > 0) {
-                    // 如果队列仍然不为空，记录错误并重试
-                    console.error("队列清空操作未完全生效，正在重试...");
-                    await saveQueue(true);
-                    await loadQueue();
+                  // 为确认起见，验证队列是否已删除
+                  const checkEntry = await kv.get(QUEUE_KEY);
+                  if (!checkEntry.value) {
+                    console.log("验证成功：队列键已从KV存储中删除");
+                  } else {
+                    console.warn("警告：队列键仍存在于KV存储中");
+                    // 再次尝试保存空队列
+                    await saveQueue();
                   }
                   
                   // 发送确认消息
@@ -359,10 +267,8 @@ serve(async (req) => {
                     timestamp: new Date().toISOString()
                   }));
                   
-                  // 广播空队列状态
+                  // 广播队列更新
                   broadcastQueue();
-                  
-                  console.log("队列清空操作完成，当前队列长度:", queue.length);
                 } catch (error) {
                   console.error("清空队列失败:", error);
                   socket.send(JSON.stringify({
@@ -373,99 +279,80 @@ serve(async (req) => {
               }
               break;
 
-            case "getKVData":
-              // 检查是否为管理员请求
+            case "adminDebug":
               if (data.admin) {
                 try {
-                  console.log("管理员请求KV存储数据");
-                  const entry = await kv.get(QUEUE_KEY);
+                  console.log("管理员请求调试信息");
                   
-                  socket.send(JSON.stringify({
-                    type: "kvData",
-                    data: entry.value,
-                    key: QUEUE_KEY.join('/'),
-                    timestamp: new Date().toISOString()
-                  }));
-                } catch (error) {
-                  console.error("获取KV数据失败:", error);
-                  socket.send(JSON.stringify({
-                    type: "error",
-                    message: "无法获取KV数据"
-                  }));
-                }
-              }
-              break;
-
-            case "setKVData":
-              // 检查是否为管理员请求
-              if (data.admin && data.queueData) {
-                try {
-                  console.log("管理员正在修改KV存储数据");
-                  
-                  // 验证数据结构
-                  if (!Array.isArray(data.queueData)) {
-                    throw new Error("队列数据必须是数组");
+                  switch (data.action) {
+                    case "checkStorage":
+                      // 检查KV存储状态
+                      const entry = await kv.get(QUEUE_KEY);
+                      const storageData = entry.value;
+                      const memoryLength = queue.length;
+                      const storageLength = storageData ? (Array.isArray(storageData) ? storageData.length : "非数组") : "无数据";
+                      
+                      console.log(`调试信息: 内存队列长度=${memoryLength}, 存储队列长度=${storageLength}`);
+                      
+                      socket.send(JSON.stringify({
+                        type: "debugInfo",
+                        memoryQueue: {length: memoryLength},
+                        storageQueue: {length: storageLength, exists: !!entry.value},
+                        timestamp: new Date().toISOString()
+                      }));
+                      break;
+                      
+                    case "forceSync":
+                      // 强制将内存队列同步到存储
+                      await saveQueue();
+                      console.log("强制同步：内存队列已保存到KV存储");
+                      
+                      socket.send(JSON.stringify({
+                        type: "debugInfo",
+                        message: "已强制同步内存队列到存储",
+                        queueLength: queue.length,
+                        timestamp: new Date().toISOString()
+                      }));
+                      break;
+                      
+                    case "resetStorage":
+                      // 重置存储（先删除后重建）
+                      await kv.delete(QUEUE_KEY);
+                      console.log("已删除KV存储键");
+                      await saveQueue();
+                      console.log("已重建KV存储键");
+                      
+                      socket.send(JSON.stringify({
+                        type: "debugInfo",
+                        message: "已重置KV存储",
+                        queueLength: queue.length,
+                        timestamp: new Date().toISOString()
+                      }));
+                      break;
                   }
-                  
-                  // 转换为新的数据格式
-                  const newData = {
-                    version: 2,
-                    lastSaved: new Date().toISOString(),
-                    items: data.queueData.map(person => ({
-                      ...person,
-                      joinTime: new Date(person.joinTime)
-                    }))
-                  };
-                  
-                  // 更新KV存储
-                  await kv.set(QUEUE_KEY, newData);
-                  
-                  // 更新内存中的队列
-                  queue = newData.items;
-                  
-                  socket.send(JSON.stringify({
-                    type: "kvUpdateSuccess",
-                    message: "KV数据已更新",
-                    timestamp: new Date().toISOString()
-                  }));
-                  
-                  // 广播队列更新
-                  broadcastQueue();
                 } catch (error) {
-                  console.error("更新KV数据失败:", error);
+                  console.error("调试操作失败:", error);
                   socket.send(JSON.stringify({
                     type: "error",
-                    message: "更新KV数据失败: " + error.message
+                    message: `调试失败: ${error.message}`
                   }));
                 }
               }
               break;
           }
         } catch (error) {
-          console.error("处理消息时出错:", {
-            error: error.message,
-            stack: error.stack,
-            timestamp: new Date().toISOString()
-          });
+          console.error("处理消息时出错:", error);
         }
       };
       
-      // 添加关闭连接日志
       socket.onclose = () => {
-        console.log("客户端断开连接", {
-          readyState: socket.readyState,
-          timestamp: new Date().toISOString()
-        });
+        console.log("客户端断开连接");
         clients.delete(socket);
       };
       
       return response;
     } catch (e) {
-      console.error("WebSocket连接失败:", {
-        error: e.message,
-        stack: e.stack,
-        timestamp: new Date().toISOString()
-      });
+      console.error("WebSocket连接失败:", e);
       return new Response("WebSocket连接失败", { status: 400 });
     }
   }
@@ -915,7 +802,6 @@ serve(async (req) => {
                   background-color: #c0392b !important;
               }
 
-              /* KV管理器样式 */
               .admin-debug {
                   background-color: #9b59b6 !important;
               }
@@ -924,61 +810,14 @@ serve(async (req) => {
                   background-color: #8e44ad !important;
               }
               
-              .kv-manager-content {
-                  width: 80%;
-                  max-width: 800px;
-                  max-height: 90vh;
-                  overflow-y: auto;
-              }
-              
-              .kv-controls {
-                  display: flex;
-                  justify-content: space-between;
-                  align-items: center;
-                  margin-bottom: 15px;
-              }
-              
-              .kv-controls button {
-                  padding: 8px 15px;
-                  border: none;
-                  border-radius: 4px;
-                  cursor: pointer;
-                  font-weight: bold;
-                  background-color: #3498db;
-                  color: white;
-              }
-              
-              .json-editor-container {
-                  width: 100%;
+              .debug-info {
+                  background-color: #f1f1f1;
                   border: 1px solid #ddd;
-                  border-radius: 4px;
-                  overflow: hidden;
-              }
-              
-              #kvDataEditor {
-                  width: 100%;
                   padding: 10px;
-                  font-family: monospace;
-                  font-size: 14px;
-                  border: none;
-                  resize: vertical;
-                  min-height: 300px;
-              }
-              
-              .validation-message {
                   margin-top: 10px;
-                  padding: 5px;
-                  border-radius: 4px;
-              }
-              
-              .validation-error {
-                  background-color: #ffecec;
-                  color: #e74c3c;
-              }
-              
-              .validation-success {
-                  background-color: #efffec;
-                  color: #27ae60;
+                  font-family: monospace;
+                  white-space: pre-wrap;
+                  border-radius: 5px;
               }
           </style>
           <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
@@ -1026,7 +865,7 @@ serve(async (req) => {
                       <button id="adminModeBtn" class="admin-switch">管理员模式</button>
                       <button id="forceSaveBtn" class="admin-action" style="display: none;">强制保存队列</button>
                       <button id="clearQueueBtn" class="admin-action admin-danger" style="display: none;">清空队列</button>
-                      <button id="kvManagerBtn" class="admin-action admin-debug" style="display: none;">KV数据管理</button>
+                      <button id="debugBtn" class="admin-action admin-debug" style="display: none;">存储诊断</button>
                   </div>
               </div>
 
@@ -1047,22 +886,6 @@ serve(async (req) => {
                           <button id="confirmYes" class="danger-btn">确认</button>
                           <button id="confirmNo">取消</button>
                       </div>
-                  </div>
-              </div>
-
-              <!-- 添加KV管理对话框 -->
-              <div id="kvManagerDialog" class="modal">
-                  <div class="modal-content kv-manager-content">
-                      <h3>KV存储数据管理</h3>
-                      <div class="kv-controls">
-                          <button id="refreshKVBtn">刷新数据</button>
-                          <button id="updateKVBtn">保存修改</button>
-                          <span class="close-modal" id="closeKVBtn">&times;</span>
-                      </div>
-                      <div class="json-editor-container">
-                          <textarea id="kvDataEditor" rows="15" placeholder="加载中..."></textarea>
-                      </div>
-                      <div class="validation-message" id="validationMsg"></div>
                   </div>
               </div>
           </div>
@@ -1246,9 +1069,6 @@ serve(async (req) => {
                                   if (clearQueueBtn) {
                                       clearQueueBtn.style.display = 'inline-block';
                                   }
-                                  if (kvManagerBtn) {
-                                      kvManagerBtn.style.display = 'inline-block';
-                                  }
                                   
                                   showNotification('管理员验证成功', 'success');
                                   
@@ -1278,24 +1098,6 @@ serve(async (req) => {
                               
                               case "queueCleared":
                                   showNotification(data.message, 'success');
-                                  break;
-
-                              case "kvData":
-                                  if (kvDataEditor) {
-                                      try {
-                                          const formattedJson = JSON.stringify(data.data, null, 2);
-                                          kvDataEditor.value = formattedJson;
-                                          showValidationMessage("数据已加载", "success");
-                                      } catch (error) {
-                                          showValidationMessage("JSON格式化失败: " + error.message, "error");
-                                          kvDataEditor.value = JSON.stringify(data.data);
-                                      }
-                                  }
-                                  break;
-
-                              case "kvUpdateSuccess":
-                                  showNotification(data.message, 'success');
-                                  showValidationMessage("KV数据已成功更新", "success");
                                   break;
                           }
                       } catch (error) {
@@ -1651,114 +1453,98 @@ serve(async (req) => {
                   }
               }
 
-              // 声明KV管理器相关变量
-              let kvManagerBtn;
-              let kvManagerDialog;
-              let kvDataEditor;
-              let refreshKVBtn;
-              let updateKVBtn;
-              let closeKVBtn;
-              let validationMsg;
+              // 调试相关变量
+              let debugBtn;
               
-              // 在DOM加载后初始化
+              // 初始化
               document.addEventListener('DOMContentLoaded', function() {
-                  // 现有变量初始化...
+                  // 获取调试按钮
+                  debugBtn = document.getElementById('debugBtn');
                   
-                  // 初始化KV管理器变量
-                  kvManagerBtn = document.getElementById('kvManagerBtn');
-                  kvManagerDialog = document.getElementById('kvManagerDialog');
-                  kvDataEditor = document.getElementById('kvDataEditor');
-                  refreshKVBtn = document.getElementById('refreshKVBtn');
-                  updateKVBtn = document.getElementById('updateKVBtn');
-                  closeKVBtn = document.getElementById('closeKVBtn');
-                  validationMsg = document.getElementById('validationMsg');
-                  
-                  // 添加KV管理器按钮点击事件
-                  if (kvManagerBtn) {
-                      kvManagerBtn.addEventListener('click', openKVManager);
-                  }
-                  
-                  // 添加KV管理器对话框事件
-                  if (refreshKVBtn) {
-                      refreshKVBtn.addEventListener('click', fetchKVData);
-                  }
-                  
-                  if (updateKVBtn) {
-                      updateKVBtn.addEventListener('click', updateKVData);
-                  }
-                  
-                  if (closeKVBtn) {
-                      closeKVBtn.addEventListener('click', closeKVManager);
+                  // 添加调试按钮事件
+                  if (debugBtn) {
+                      debugBtn.addEventListener('click', showDebugMenu);
                   }
               });
               
-              // 添加KV管理器函数
-              function openKVManager() {
-                  if (!isAdmin || !kvManagerDialog) return;
-                  
-                  kvManagerDialog.style.display = 'flex';
-                  fetchKVData();
-              }
-              
-              function closeKVManager() {
-                  if (kvManagerDialog) {
-                      kvManagerDialog.style.display = 'none';
-                  }
-              }
-              
-              function fetchKVData() {
-                  if (socket && socket.readyState === WebSocket.OPEN && isAdmin) {
-                      kvDataEditor.value = "加载中...";
-                      socket.send(JSON.stringify({
-                          type: 'getKVData',
-                          admin: true
-                      }));
-                  }
-              }
-              
-              function updateKVData() {
-                  if (!isAdmin) return;
-                  
-                  try {
-                      const jsonData = JSON.parse(kvDataEditor.value);
-                      
-                      // 验证数据是否为数组
-                      if (!Array.isArray(jsonData)) {
-                          showValidationMessage("数据必须是数组格式", "error");
-                          return;
-                      }
-                      
-                      // 验证每个项目是否有正确的结构
-                      for (const item of jsonData) {
-                          if (!item.id || !item.name || !item.joinTime) {
-                              showValidationMessage("队列项目缺少必要字段 (id, name, joinTime)", "error");
-                              return;
+              // 显示调试菜单
+              function showDebugMenu() {
+                  showConfirmDialog(
+                      '存储诊断工具',
+                      '选择一个操作:\n1. 检查存储状态\n2. 强制同步内存到存储\n3. 重置存储',
+                      () => {
+                          // 修改调试菜单创建方式
+                          const debugMenu = document.createElement('div');
+                          debugMenu.className = 'debug-menu';
+                          
+                          // 创建按钮而不是使用innerHTML
+                          const checkBtn = document.createElement('button');
+                          checkBtn.textContent = '检查存储状态';
+                          checkBtn.addEventListener('click', checkStorage);
+                          
+                          const syncBtn = document.createElement('button');
+                          syncBtn.textContent = '强制同步';
+                          syncBtn.addEventListener('click', forceSyncStorage);
+                          
+                          const resetBtn = document.createElement('button'); 
+                          resetBtn.textContent = '重置存储';
+                          resetBtn.className = 'danger-btn';
+                          resetBtn.addEventListener('click', resetStorage);
+                          
+                          // 添加按钮到菜单
+                          debugMenu.appendChild(checkBtn);
+                          debugMenu.appendChild(syncBtn);
+                          debugMenu.appendChild(resetBtn);
+                          
+                          // 关闭确认对话框并显示调试菜单
+                          confirmDialog.style.display = 'none';
+                          const container = document.querySelector('.page-content');
+                          if (container) {
+                              // 移除已有的调试菜单
+                              const oldMenu = document.querySelector('.debug-menu');
+                              if (oldMenu) oldMenu.remove();
+                              
+                              container.insertBefore(debugMenu, container.firstChild);
                           }
                       }
-                      
-                      // 发送数据到服务器
-                      if (socket && socket.readyState === WebSocket.OPEN) {
-                          socket.send(JSON.stringify({
-                              type: 'setKVData',
-                              admin: true,
-                              queueData: jsonData
-                          }));
-                      }
-                  } catch (error) {
-                      showValidationMessage("JSON解析错误: " + error.message, "error");
+                  );
+              }
+              
+              // 调试功能 - 检查存储状态
+              function checkStorage() {
+                  if (socket && socket.readyState === WebSocket.OPEN && isAdmin) {
+                      socket.send(JSON.stringify({
+                          type: 'adminDebug',
+                          action: 'checkStorage',
+                          admin: true
+                      }));
+                      showNotification('正在检查存储状态...', 'info');
                   }
               }
               
-              function showValidationMessage(message, type) {
-                  if (!validationMsg) return;
-                  
-                  validationMsg.textContent = message;
-                  validationMsg.className = "validation-message";
-                  
-                  if (type === "error") {
-                      validationMsg.classList.add("validation-error");
-                  } else if (type === "success") {
-                      validationMsg.classList.add("validation-success");
+              // 调试功能 - 强制同步
+              function forceSyncStorage() {
+                  if (socket && socket.readyState === WebSocket.OPEN && isAdmin) {
+                      socket.send(JSON.stringify({
+                          type: 'adminDebug',
+                          action: 'forceSync',
+                          admin: true
+                      }));
+                      showNotification('正在强制同步...', 'info');
+                  }
+              }
+              
+              // 调试功能 - 重置存储
+              function resetStorage() {
+                  if (socket && socket.readyState === WebSocket.OPEN && isAdmin) {
+                      if (confirm('确定要重置存储吗？这将删除并重建存储键。')) {
+                          socket.send(JSON.stringify({
+                              type: 'adminDebug',
+                              action: 'resetStorage',
+                              admin: true
+                          }));
+                          showNotification('正在重置存储...', 'info');
+                      }
                   }
               }
           </script>
@@ -1848,4 +1634,23 @@ function broadcastQueue() {
       console.error("Error broadcasting message:", e);
     }
   }
-} 
+}
+
+// 添加定期存储功能
+setInterval(async () => {
+  await saveQueue();
+}, 5 * 60 * 1000); // 每5分钟保存一次
+
+// 清理长时间闲置项目
+setInterval(async () => {
+  const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24小时
+  const initialLength = queue.length;
+  
+  queue = queue.filter(person => new Date(person.joinTime) > dayAgo);
+  
+  if (queue.length < initialLength) {
+    console.log(`已移除 ${initialLength - queue.length} 个24小时前的队列项目`);
+    await saveQueue();
+    broadcastQueue();
+  }
+}, 60 * 60 * 1000); // 每小时检查一次 
