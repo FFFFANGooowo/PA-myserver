@@ -1435,8 +1435,6 @@ serve(async (req) => {
             border-radius: 8px;
             padding: 8px;
             margin-bottom: 10px;
-            width: calc(100% - 20px); /* 与队列项相同的宽度 */
-            margin-left: 10px; /* 与队列项相同的左边距 */
         }
 
         .title {
@@ -1499,8 +1497,6 @@ serve(async (req) => {
             }
             .header {
                 padding: 6px;
-                width: calc(100% - 12px); /* 调整小屏幕下的宽度 */
-                margin-left: 6px;
             }
             .title {
                 font-size: 20px;
