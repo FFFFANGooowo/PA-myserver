@@ -407,11 +407,21 @@ serve(async (req) => {
                     throw new Error("队列数据必须是数组");
                   }
                   
+                  // 转换为新的数据格式
+                  const newData = {
+                    version: 2,
+                    lastSaved: new Date().toISOString(),
+                    items: data.queueData.map(person => ({
+                      ...person,
+                      joinTime: new Date(person.joinTime)
+                    }))
+                  };
+                  
                   // 更新KV存储
-                  await kv.set(QUEUE_KEY, data.queueData);
+                  await kv.set(QUEUE_KEY, newData);
                   
                   // 更新内存中的队列
-                  queue = data.queueData;
+                  queue = newData.items;
                   
                   socket.send(JSON.stringify({
                     type: "kvUpdateSuccess",
