@@ -243,12 +243,22 @@ serve(async (req) => {
                   // 记录之前的队列长度
                   const previousLength = queue.length;
                   
-                  // 清空队列
+                  // 清空内存中的队列
                   queue = [];
                   
-                  // 保存到KV存储
-                  await saveQueue();
-                  console.log("队列已清空并保存");
+                  // 彻底删除KV存储中的队列，而不是保存空数组
+                  await kv.delete(QUEUE_KEY);
+                  console.log("已删除KV存储中的队列键");
+                  
+                  // 为确认起见，验证队列是否已删除
+                  const checkEntry = await kv.get(QUEUE_KEY);
+                  if (!checkEntry.value) {
+                    console.log("验证成功：队列键已从KV存储中删除");
+                  } else {
+                    console.warn("警告：队列键仍存在于KV存储中");
+                    // 再次尝试保存空队列
+                    await saveQueue();
+                  }
                   
                   // 发送确认消息
                   socket.send(JSON.stringify({
@@ -264,6 +274,67 @@ serve(async (req) => {
                   socket.send(JSON.stringify({
                     type: "error",
                     message: "清空队列失败，请重试"
+                  }));
+                }
+              }
+              break;
+
+            case "adminDebug":
+              if (data.admin) {
+                try {
+                  console.log("管理员请求调试信息");
+                  
+                  switch (data.action) {
+                    case "checkStorage":
+                      // 检查KV存储状态
+                      const entry = await kv.get(QUEUE_KEY);
+                      const storageData = entry.value;
+                      const memoryLength = queue.length;
+                      const storageLength = storageData ? (Array.isArray(storageData) ? storageData.length : "非数组") : "无数据";
+                      
+                      console.log(`调试信息: 内存队列长度=${memoryLength}, 存储队列长度=${storageLength}`);
+                      
+                      socket.send(JSON.stringify({
+                        type: "debugInfo",
+                        memoryQueue: {length: memoryLength},
+                        storageQueue: {length: storageLength, exists: !!entry.value},
+                        timestamp: new Date().toISOString()
+                      }));
+                      break;
+                      
+                    case "forceSync":
+                      // 强制将内存队列同步到存储
+                      await saveQueue();
+                      console.log("强制同步：内存队列已保存到KV存储");
+                      
+                      socket.send(JSON.stringify({
+                        type: "debugInfo",
+                        message: "已强制同步内存队列到存储",
+                        queueLength: queue.length,
+                        timestamp: new Date().toISOString()
+                      }));
+                      break;
+                      
+                    case "resetStorage":
+                      // 重置存储（先删除后重建）
+                      await kv.delete(QUEUE_KEY);
+                      console.log("已删除KV存储键");
+                      await saveQueue();
+                      console.log("已重建KV存储键");
+                      
+                      socket.send(JSON.stringify({
+                        type: "debugInfo",
+                        message: "已重置KV存储",
+                        queueLength: queue.length,
+                        timestamp: new Date().toISOString()
+                      }));
+                      break;
+                  }
+                } catch (error) {
+                  console.error("调试操作失败:", error);
+                  socket.send(JSON.stringify({
+                    type: "error",
+                    message: `调试失败: ${error.message}`
                   }));
                 }
               }
@@ -730,6 +801,24 @@ serve(async (req) => {
               .danger-btn:hover {
                   background-color: #c0392b !important;
               }
+
+              .admin-debug {
+                  background-color: #9b59b6 !important;
+              }
+              
+              .admin-debug:hover {
+                  background-color: #8e44ad !important;
+              }
+              
+              .debug-info {
+                  background-color: #f1f1f1;
+                  border: 1px solid #ddd;
+                  padding: 10px;
+                  margin-top: 10px;
+                  font-family: monospace;
+                  white-space: pre-wrap;
+                  border-radius: 5px;
+              }
           </style>
           <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
       </head>
@@ -776,6 +865,7 @@ serve(async (req) => {
                       <button id="adminModeBtn" class="admin-switch">管理员模式</button>
                       <button id="forceSaveBtn" class="admin-action" style="display: none;">强制保存队列</button>
                       <button id="clearQueueBtn" class="admin-action admin-danger" style="display: none;">清空队列</button>
+                      <button id="debugBtn" class="admin-action admin-debug" style="display: none;">存储诊断</button>
                   </div>
               </div>
 
@@ -1360,6 +1450,101 @@ serve(async (req) => {
                           admin: true
                       }));
                       showNotification('正在清空队列...', 'info');
+                  }
+              }
+
+              // 调试相关变量
+              let debugBtn;
+              
+              // 初始化
+              document.addEventListener('DOMContentLoaded', function() {
+                  // 获取调试按钮
+                  debugBtn = document.getElementById('debugBtn');
+                  
+                  // 添加调试按钮事件
+                  if (debugBtn) {
+                      debugBtn.addEventListener('click', showDebugMenu);
+                  }
+              });
+              
+              // 显示调试菜单
+              function showDebugMenu() {
+                  showConfirmDialog(
+                      '存储诊断工具',
+                      '选择一个操作:\n1. 检查存储状态\n2. 强制同步内存到存储\n3. 重置存储',
+                      () => {
+                          // 修改调试菜单创建方式
+                          const debugMenu = document.createElement('div');
+                          debugMenu.className = 'debug-menu';
+                          
+                          // 创建按钮而不是使用innerHTML
+                          const checkBtn = document.createElement('button');
+                          checkBtn.textContent = '检查存储状态';
+                          checkBtn.addEventListener('click', checkStorage);
+                          
+                          const syncBtn = document.createElement('button');
+                          syncBtn.textContent = '强制同步';
+                          syncBtn.addEventListener('click', forceSyncStorage);
+                          
+                          const resetBtn = document.createElement('button'); 
+                          resetBtn.textContent = '重置存储';
+                          resetBtn.className = 'danger-btn';
+                          resetBtn.addEventListener('click', resetStorage);
+                          
+                          // 添加按钮到菜单
+                          debugMenu.appendChild(checkBtn);
+                          debugMenu.appendChild(syncBtn);
+                          debugMenu.appendChild(resetBtn);
+                          
+                          // 关闭确认对话框并显示调试菜单
+                          confirmDialog.style.display = 'none';
+                          const container = document.querySelector('.page-content');
+                          if (container) {
+                              // 移除已有的调试菜单
+                              const oldMenu = document.querySelector('.debug-menu');
+                              if (oldMenu) oldMenu.remove();
+                              
+                              container.insertBefore(debugMenu, container.firstChild);
+                          }
+                      }
+                  );
+              }
+              
+              // 调试功能 - 检查存储状态
+              function checkStorage() {
+                  if (socket && socket.readyState === WebSocket.OPEN && isAdmin) {
+                      socket.send(JSON.stringify({
+                          type: 'adminDebug',
+                          action: 'checkStorage',
+                          admin: true
+                      }));
+                      showNotification('正在检查存储状态...', 'info');
+                  }
+              }
+              
+              // 调试功能 - 强制同步
+              function forceSyncStorage() {
+                  if (socket && socket.readyState === WebSocket.OPEN && isAdmin) {
+                      socket.send(JSON.stringify({
+                          type: 'adminDebug',
+                          action: 'forceSync',
+                          admin: true
+                      }));
+                      showNotification('正在强制同步...', 'info');
+                  }
+              }
+              
+              // 调试功能 - 重置存储
+              function resetStorage() {
+                  if (socket && socket.readyState === WebSocket.OPEN && isAdmin) {
+                      if (confirm('确定要重置存储吗？这将删除并重建存储键。')) {
+                          socket.send(JSON.stringify({
+                              type: 'adminDebug',
+                              action: 'resetStorage',
+                              admin: true
+                          }));
+                          showNotification('正在重置存储...', 'info');
+                      }
                   }
               }
           </script>
