@@ -18,8 +18,17 @@ const loadQueue = async () => {
   try {
     const entry = await kv.get(QUEUE_KEY);
     if (entry.value) {
-      queue = entry.value as QueuePerson[];
+      // 确保正确转换日期
+      queue = (entry.value as QueuePerson[]).map(person => ({
+        ...person,
+        joinTime: new Date(person.joinTime)
+      }));
       console.log(`已从存储加载 ${queue.length} 个队列项目`);
+      
+      // 添加详细日志
+      queue.forEach(person => {
+        console.log(`队列项目: ${person.name}, 加入时间: ${person.joinTime.toISOString()}`);
+      });
     } else {
       queue = [];
       console.log("队列为空");
@@ -34,14 +43,24 @@ const loadQueue = async () => {
 const saveQueue = async (forceEmpty = false) => {
   try {
     if (forceEmpty) {
-      // 强制保存空队列
       await kv.delete(QUEUE_KEY);
       await kv.set(QUEUE_KEY, []);
       queue = [];
       console.log("已强制清空队列存储");
     } else {
-      await kv.set(QUEUE_KEY, queue);
+      // 确保日期被正确序列化
+      const queueToSave = queue.map(person => ({
+        ...person,
+        joinTime: new Date(person.joinTime).toISOString()
+      }));
+      
+      await kv.set(QUEUE_KEY, queueToSave);
       console.log(`已保存 ${queue.length} 个队列项目到存储`);
+      
+      // 添加详细日志
+      queueToSave.forEach(person => {
+        console.log(`保存队列项目: ${person.name}, 加入时间: ${person.joinTime}`);
+      });
     }
   } catch (error) {
     console.error("保存队列失败:", error);
@@ -124,8 +143,10 @@ serve(async (req) => {
               const newPerson: QueuePerson = {
                 id: Date.now().toString(),
                 name: data.name,
-                joinTime: new Date()
+                joinTime: new Date() // 确保使用新的Date对象
               };
+              
+              console.log(`新用户加入: ${newPerson.name}, 时间: ${newPerson.joinTime.toISOString()}`);
               
               // 添加到队列时检查大小
               if (queue.length >= MAX_QUEUE_SIZE) {
@@ -1757,16 +1778,41 @@ setInterval(async () => {
   await saveQueue();
 }, 5 * 60 * 1000); // 每5分钟保存一次
 
-// 清理长时间闲置项目
+// 修改清理逻辑，添加更多日志和安全检查
 setInterval(async () => {
-  const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24小时
-  const initialLength = queue.length;
-  
-  queue = queue.filter(person => new Date(person.joinTime) > dayAgo);
-  
-  if (queue.length < initialLength) {
-    console.log(`已移除 ${initialLength - queue.length} 个24小时前的队列项目`);
-    await saveQueue();
-    broadcastQueue();
+  try {
+    console.log("开始检查过期队列项目...");
+    const now = new Date();
+    const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24小时前
+    
+    console.log(`当前时间: ${now.toISOString()}`);
+    console.log(`清理界限: ${dayAgo.toISOString()}`);
+    
+    const initialLength = queue.length;
+    
+    // 在过滤之前检查每个项目
+    queue.forEach(person => {
+      const joinTime = new Date(person.joinTime);
+      console.log(`检查用户 ${person.name}: 加入时间 ${joinTime.toISOString()}`);
+      if (joinTime < dayAgo) {
+        console.log(`用户 ${person.name} 将被移除 (超过24小时)`);
+      }
+    });
+    
+    // 过滤队列
+    queue = queue.filter(person => {
+      const joinTime = new Date(person.joinTime);
+      return joinTime > dayAgo;
+    });
+    
+    if (queue.length < initialLength) {
+      console.log(`已移除 ${initialLength - queue.length} 个超过24小时的队列项目`);
+      await saveQueue();
+      broadcastQueue();
+    } else {
+      console.log("没有需要清理的队列项目");
+    }
+  } catch (error) {
+    console.error("清理队列时出错:", error);
   }
 }, 60 * 60 * 1000); // 每小时检查一次 
