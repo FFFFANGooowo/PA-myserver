@@ -18,15 +18,34 @@ const loadQueue = async () => {
   try {
     const entry = await kv.get(QUEUE_KEY);
     if (entry.value) {
+      // 处理旧格式数据（数组）
       if (Array.isArray(entry.value)) {
-        // 处理旧格式数据
+        console.log("检测到旧格式数据，正在迁移...");
         queue = entry.value.map(person => ({
           ...person,
           joinTime: new Date(person.joinTime)
         }));
-      } else {
-        // 处理新格式数据
-        const data = entry.value as { lastSaved: string; items: QueuePerson[] };
+        
+        // 立即保存为新格式
+        await saveQueue();
+        console.log("数据格式迁移完成");
+      }
+      // 处理新格式数据
+      else {
+        const data = entry.value as { 
+          version: number;
+          lastSaved: string; 
+          items: QueuePerson[] 
+        };
+        
+        // 检查版本号
+        if (data.version !== 2) {
+          console.log("检测到旧版本数据，正在升级...");
+          // 这里可以添加数据迁移逻辑
+          data.version = 2;
+          await saveQueue();
+        }
+        
         queue = data.items.map(person => ({
           ...person,
           joinTime: new Date(person.joinTime)
@@ -54,12 +73,17 @@ const saveQueue = async (forceEmpty = false) => {
   try {
     if (forceEmpty) {
       await kv.delete(QUEUE_KEY);
-      await kv.set(QUEUE_KEY, []);
+      await kv.set(QUEUE_KEY, {
+        version: 2, // 添加版本号
+        lastSaved: new Date().toISOString(),
+        items: []
+      });
       queue = [];
       console.log("已强制清空队列存储");
     } else {
-      // 确保日期被正确序列化，并添加最后保存时间
+      // 使用统一的数据格式
       const queueToSave = {
+        version: 2, // 添加版本号
         lastSaved: new Date().toISOString(),
         items: queue.map(person => ({
           ...person,
