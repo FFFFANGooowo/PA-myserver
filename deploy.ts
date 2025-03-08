@@ -8,7 +8,29 @@ interface QueuePerson {
   joinTime: Date;
 }
 
+// 使用Deno KV存储
+const kv = await Deno.openKv();
+const QUEUE_KEY = ["queue_data"];
+
+// 初始化队列（从KV存储加载）
 let queue: QueuePerson[] = [];
+const loadQueue = async () => {
+  const entry = await kv.get(QUEUE_KEY);
+  if (entry.value) {
+    queue = entry.value as QueuePerson[];
+    console.log(`已从存储加载 ${queue.length} 个队列项目`);
+  }
+};
+
+// 保存队列到KV存储
+const saveQueue = async () => {
+  await kv.set(QUEUE_KEY, queue);
+  console.log(`已保存 ${queue.length} 个队列项目到存储`);
+};
+
+// 初始加载队列
+await loadQueue();
+
 const clients = new Set<WebSocket>();
 
 // 添加简单的管理员密码
@@ -50,7 +72,7 @@ serve(async (req) => {
         }));
       };
       
-      socket.onmessage = (event) => {
+      socket.onmessage = async (event) => {
         try {
           const data = JSON.parse(event.data);
           
@@ -91,6 +113,9 @@ serve(async (req) => {
               }
               queue.push(newPerson);
               
+              // 保存队列到KV存储
+              await saveQueue();
+              
               // 通知加入成功
               socket.send(JSON.stringify({
                 type: "joinSuccess"
@@ -101,6 +126,8 @@ serve(async (req) => {
               break;
               
             case "getQueue":
+              // 确保发送最新队列
+              await loadQueue();
               // 发送当前队列
               socket.send(JSON.stringify({
                 type: "queueUpdate",
@@ -112,6 +139,7 @@ serve(async (req) => {
               // 离开队列
               if (data.id) {
                 queue = queue.filter((person) => person.id !== data.id);
+                await saveQueue();
                 broadcastQueue();
               }
               break;
@@ -135,6 +163,7 @@ serve(async (req) => {
               // 管理员移除用户
               if (data.userId) {
                 queue = queue.filter((person) => person.id !== data.userId);
+                await saveQueue();
                 broadcastQueue();
                 socket.send(JSON.stringify({
                   type: "success",
@@ -155,6 +184,7 @@ serve(async (req) => {
                     // 下移
                     [queue[index], queue[index+1]] = [queue[index+1], queue[index]];
                   }
+                  await saveQueue();
                   broadcastQueue();
                 }
               }
@@ -172,8 +202,8 @@ serve(async (req) => {
       
       return response;
     } catch (e) {
-      console.error("WebSocket upgrade error:", e);
-      return new Response(`WebSocket upgrade failed: ${e.message}`, { status: 400 });
+      console.error("WebSocket连接失败:", e);
+      return new Response("WebSocket连接失败", { status: 400 });
     }
   }
   
@@ -1166,7 +1196,6 @@ function broadcastQueue() {
   
   for (const client of clients) {
     try {
-      // 使用 readyState 数字值而非常量
       if (client.readyState === 1) { // OPEN = 1
         client.send(message);
       }
@@ -1176,17 +1205,21 @@ function broadcastQueue() {
   }
 }
 
-// 暂时禁用定期清理功能
-/*
-setInterval(() => {
-  const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+// 添加定期存储功能
+setInterval(async () => {
+  await saveQueue();
+}, 5 * 60 * 1000); // 每5分钟保存一次
+
+// 清理长时间闲置项目
+setInterval(async () => {
+  const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24小时
   const initialLength = queue.length;
   
-  queue = queue.filter(person => person.joinTime > twoHoursAgo);
+  queue = queue.filter(person => new Date(person.joinTime) > dayAgo);
   
   if (queue.length < initialLength) {
-    console.log(`已移除 ${initialLength - queue.length} 个闲置队列项目`);
+    console.log(`已移除 ${initialLength - queue.length} 个24小时前的队列项目`);
+    await saveQueue();
     broadcastQueue();
   }
-}, 15 * 60 * 1000);
-*/ 
+}, 60 * 60 * 1000); // 每小时检查一次 
