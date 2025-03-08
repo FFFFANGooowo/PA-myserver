@@ -156,7 +156,7 @@ serve(async (req) => {
               const newPerson: QueuePerson = {
                 id: Date.now().toString(),
                 name: data.name,
-                joinTime: new Date() // 确保使用新的Date对象
+                joinTime: new Date()
               };
               
               console.log(`新用户加入: ${newPerson.name}, 时间: ${newPerson.joinTime.toISOString()}`);
@@ -168,16 +168,27 @@ serve(async (req) => {
               }
               queue.push(newPerson);
               
-              // 保存队列到KV存储
-              await saveQueue();
-              
-              // 通知加入成功
-              socket.send(JSON.stringify({
-                type: "joinSuccess"
-              }));
-              
-              // 广播更新队列
-              broadcastQueue();
+              try {
+                // 强制保存队列到KV存储
+                await saveQueue();
+                console.log(`队列已保存 - 新用户加入: ${newPerson.name}`);
+                
+                // 通知加入成功
+                socket.send(JSON.stringify({
+                  type: "joinSuccess"
+                }));
+                
+                // 广播更新队列
+                broadcastQueue();
+              } catch (error) {
+                console.error("保存队列失败 (加入):", error);
+                // 从队列中移除新加入的用户
+                queue = queue.filter(person => person.id !== newPerson.id);
+                socket.send(JSON.stringify({
+                  type: "error",
+                  message: "加入队列失败，请重试"
+                }));
+              }
               break;
               
             case "getQueue":
@@ -193,9 +204,33 @@ serve(async (req) => {
             case "leave":
               // 离开队列
               if (data.id) {
-                queue = queue.filter((person) => person.id !== data.id);
-                await saveQueue();
-                broadcastQueue();
+                try {
+                  const leavingPerson = queue.find(person => person.id === data.id);
+                  if (leavingPerson) {
+                    console.log(`用户离开队列: ${leavingPerson.name}`);
+                  }
+                  
+                  queue = queue.filter((person) => person.id !== data.id);
+                  
+                  // 强制保存更新后的队列
+                  await saveQueue();
+                  console.log(`队列已保存 - 用户离开${leavingPerson ? ': ' + leavingPerson.name : ''}`);
+                  
+                  // 广播更新队列
+                  broadcastQueue();
+                  
+                  // 发送离开成功消息
+                  socket.send(JSON.stringify({
+                    type: "leaveSuccess",
+                    message: "已成功离开队列"
+                  }));
+                } catch (error) {
+                  console.error("保存队列失败 (离开):", error);
+                  socket.send(JSON.stringify({
+                    type: "error",
+                    message: "离开队列时出错，请重试"
+                  }));
+                }
               }
               break;
             
