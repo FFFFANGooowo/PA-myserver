@@ -296,6 +296,64 @@ serve(async (req) => {
                 }
               }
               break;
+
+            case "getKVData":
+              // 检查是否为管理员请求
+              if (data.admin) {
+                try {
+                  console.log("管理员请求KV存储数据");
+                  const entry = await kv.get(QUEUE_KEY);
+                  
+                  socket.send(JSON.stringify({
+                    type: "kvData",
+                    data: entry.value,
+                    key: QUEUE_KEY.join('/'),
+                    timestamp: new Date().toISOString()
+                  }));
+                } catch (error) {
+                  console.error("获取KV数据失败:", error);
+                  socket.send(JSON.stringify({
+                    type: "error",
+                    message: "无法获取KV数据"
+                  }));
+                }
+              }
+              break;
+
+            case "setKVData":
+              // 检查是否为管理员请求
+              if (data.admin && data.queueData) {
+                try {
+                  console.log("管理员正在修改KV存储数据");
+                  
+                  // 验证数据结构
+                  if (!Array.isArray(data.queueData)) {
+                    throw new Error("队列数据必须是数组");
+                  }
+                  
+                  // 更新KV存储
+                  await kv.set(QUEUE_KEY, data.queueData);
+                  
+                  // 更新内存中的队列
+                  queue = data.queueData;
+                  
+                  socket.send(JSON.stringify({
+                    type: "kvUpdateSuccess",
+                    message: "KV数据已更新",
+                    timestamp: new Date().toISOString()
+                  }));
+                  
+                  // 广播队列更新
+                  broadcastQueue();
+                } catch (error) {
+                  console.error("更新KV数据失败:", error);
+                  socket.send(JSON.stringify({
+                    type: "error",
+                    message: "更新KV数据失败: " + error.message
+                  }));
+                }
+              }
+              break;
           }
         } catch (error) {
           console.error("处理消息时出错:", error);
@@ -758,6 +816,72 @@ serve(async (req) => {
               .danger-btn:hover {
                   background-color: #c0392b !important;
               }
+
+              /* KV管理器样式 */
+              .admin-debug {
+                  background-color: #9b59b6 !important;
+              }
+              
+              .admin-debug:hover {
+                  background-color: #8e44ad !important;
+              }
+              
+              .kv-manager-content {
+                  width: 80%;
+                  max-width: 800px;
+                  max-height: 90vh;
+                  overflow-y: auto;
+              }
+              
+              .kv-controls {
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  margin-bottom: 15px;
+              }
+              
+              .kv-controls button {
+                  padding: 8px 15px;
+                  border: none;
+                  border-radius: 4px;
+                  cursor: pointer;
+                  font-weight: bold;
+                  background-color: #3498db;
+                  color: white;
+              }
+              
+              .json-editor-container {
+                  width: 100%;
+                  border: 1px solid #ddd;
+                  border-radius: 4px;
+                  overflow: hidden;
+              }
+              
+              #kvDataEditor {
+                  width: 100%;
+                  padding: 10px;
+                  font-family: monospace;
+                  font-size: 14px;
+                  border: none;
+                  resize: vertical;
+                  min-height: 300px;
+              }
+              
+              .validation-message {
+                  margin-top: 10px;
+                  padding: 5px;
+                  border-radius: 4px;
+              }
+              
+              .validation-error {
+                  background-color: #ffecec;
+                  color: #e74c3c;
+              }
+              
+              .validation-success {
+                  background-color: #efffec;
+                  color: #27ae60;
+              }
           </style>
           <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
       </head>
@@ -804,6 +928,7 @@ serve(async (req) => {
                       <button id="adminModeBtn" class="admin-switch">管理员模式</button>
                       <button id="forceSaveBtn" class="admin-action" style="display: none;">强制保存队列</button>
                       <button id="clearQueueBtn" class="admin-action admin-danger" style="display: none;">清空队列</button>
+                      <button id="kvManagerBtn" class="admin-action admin-debug" style="display: none;">KV数据管理</button>
                   </div>
               </div>
 
@@ -824,6 +949,22 @@ serve(async (req) => {
                           <button id="confirmYes" class="danger-btn">确认</button>
                           <button id="confirmNo">取消</button>
                       </div>
+                  </div>
+              </div>
+
+              <!-- 添加KV管理对话框 -->
+              <div id="kvManagerDialog" class="modal">
+                  <div class="modal-content kv-manager-content">
+                      <h3>KV存储数据管理</h3>
+                      <div class="kv-controls">
+                          <button id="refreshKVBtn">刷新数据</button>
+                          <button id="updateKVBtn">保存修改</button>
+                          <span class="close-modal" id="closeKVBtn">&times;</span>
+                      </div>
+                      <div class="json-editor-container">
+                          <textarea id="kvDataEditor" rows="15" placeholder="加载中..."></textarea>
+                      </div>
+                      <div class="validation-message" id="validationMsg"></div>
                   </div>
               </div>
           </div>
@@ -1007,6 +1148,9 @@ serve(async (req) => {
                                   if (clearQueueBtn) {
                                       clearQueueBtn.style.display = 'inline-block';
                                   }
+                                  if (kvManagerBtn) {
+                                      kvManagerBtn.style.display = 'inline-block';
+                                  }
                                   
                                   showNotification('管理员验证成功', 'success');
                                   
@@ -1036,6 +1180,24 @@ serve(async (req) => {
                               
                               case "queueCleared":
                                   showNotification(data.message, 'success');
+                                  break;
+
+                              case "kvData":
+                                  if (kvDataEditor) {
+                                      try {
+                                          const formattedJson = JSON.stringify(data.data, null, 2);
+                                          kvDataEditor.value = formattedJson;
+                                          showValidationMessage("数据已加载", "success");
+                                      } catch (error) {
+                                          showValidationMessage("JSON格式化失败: " + error.message, "error");
+                                          kvDataEditor.value = JSON.stringify(data.data);
+                                      }
+                                  }
+                                  break;
+
+                              case "kvUpdateSuccess":
+                                  showNotification(data.message, 'success');
+                                  showValidationMessage("KV数据已成功更新", "success");
                                   break;
                           }
                       } catch (error) {
@@ -1388,6 +1550,117 @@ serve(async (req) => {
                           admin: true
                       }));
                       showNotification('正在清空队列...', 'info');
+                  }
+              }
+
+              // 声明KV管理器相关变量
+              let kvManagerBtn;
+              let kvManagerDialog;
+              let kvDataEditor;
+              let refreshKVBtn;
+              let updateKVBtn;
+              let closeKVBtn;
+              let validationMsg;
+              
+              // 在DOM加载后初始化
+              document.addEventListener('DOMContentLoaded', function() {
+                  // 现有变量初始化...
+                  
+                  // 初始化KV管理器变量
+                  kvManagerBtn = document.getElementById('kvManagerBtn');
+                  kvManagerDialog = document.getElementById('kvManagerDialog');
+                  kvDataEditor = document.getElementById('kvDataEditor');
+                  refreshKVBtn = document.getElementById('refreshKVBtn');
+                  updateKVBtn = document.getElementById('updateKVBtn');
+                  closeKVBtn = document.getElementById('closeKVBtn');
+                  validationMsg = document.getElementById('validationMsg');
+                  
+                  // 添加KV管理器按钮点击事件
+                  if (kvManagerBtn) {
+                      kvManagerBtn.addEventListener('click', openKVManager);
+                  }
+                  
+                  // 添加KV管理器对话框事件
+                  if (refreshKVBtn) {
+                      refreshKVBtn.addEventListener('click', fetchKVData);
+                  }
+                  
+                  if (updateKVBtn) {
+                      updateKVBtn.addEventListener('click', updateKVData);
+                  }
+                  
+                  if (closeKVBtn) {
+                      closeKVBtn.addEventListener('click', closeKVManager);
+                  }
+              });
+              
+              // 添加KV管理器函数
+              function openKVManager() {
+                  if (!isAdmin || !kvManagerDialog) return;
+                  
+                  kvManagerDialog.style.display = 'flex';
+                  fetchKVData();
+              }
+              
+              function closeKVManager() {
+                  if (kvManagerDialog) {
+                      kvManagerDialog.style.display = 'none';
+                  }
+              }
+              
+              function fetchKVData() {
+                  if (socket && socket.readyState === WebSocket.OPEN && isAdmin) {
+                      kvDataEditor.value = "加载中...";
+                      socket.send(JSON.stringify({
+                          type: 'getKVData',
+                          admin: true
+                      }));
+                  }
+              }
+              
+              function updateKVData() {
+                  if (!isAdmin) return;
+                  
+                  try {
+                      const jsonData = JSON.parse(kvDataEditor.value);
+                      
+                      // 验证数据是否为数组
+                      if (!Array.isArray(jsonData)) {
+                          showValidationMessage("数据必须是数组格式", "error");
+                          return;
+                      }
+                      
+                      // 验证每个项目是否有正确的结构
+                      for (const item of jsonData) {
+                          if (!item.id || !item.name || !item.joinTime) {
+                              showValidationMessage("队列项目缺少必要字段 (id, name, joinTime)", "error");
+                              return;
+                          }
+                      }
+                      
+                      // 发送数据到服务器
+                      if (socket && socket.readyState === WebSocket.OPEN) {
+                          socket.send(JSON.stringify({
+                              type: 'setKVData',
+                              admin: true,
+                              queueData: jsonData
+                          }));
+                      }
+                  } catch (error) {
+                      showValidationMessage("JSON解析错误: " + error.message, "error");
+                  }
+              }
+              
+              function showValidationMessage(message, type) {
+                  if (!validationMsg) return;
+                  
+                  validationMsg.textContent = message;
+                  validationMsg.className = "validation-message";
+                  
+                  if (type === "error") {
+                      validationMsg.classList.add("validation-error");
+                  } else if (type === "success") {
+                      validationMsg.classList.add("validation-success");
                   }
               }
           </script>
