@@ -162,13 +162,36 @@ serve(async (req) => {
             case "removeUser":
               // 管理员移除用户
               if (data.userId) {
+                console.log(`管理员移除用户: ${data.userId}`);
                 queue = queue.filter((person) => person.id !== data.userId);
-                await saveQueue();
-                broadcastQueue();
-                socket.send(JSON.stringify({
-                  type: "success",
-                  message: "用户已被移除"
-                }));
+                
+                // 确保保存操作完成后再继续
+                try {
+                  await saveQueue();
+                  console.log(`成功保存移除用户后的队列状态，当前队列长度: ${queue.length}`);
+                  
+                  // 发送确认消息
+                  socket.send(JSON.stringify({
+                    type: "userRemoveConfirmed",
+                    userId: data.userId,
+                    queueLength: queue.length
+                  }));
+                  
+                  // 广播更新队列
+                  broadcastQueue();
+                } catch (error) {
+                  console.error("保存队列失败:", error);
+                  // 尝试再次保存
+                  setTimeout(async () => {
+                    try {
+                      await saveQueue();
+                      console.log("重试保存队列成功");
+                      broadcastQueue();
+                    } catch (retryError) {
+                      console.error("重试保存队列失败:", retryError);
+                    }
+                  }, 1000);
+                }
               }
               break;
               
@@ -186,6 +209,28 @@ serve(async (req) => {
                   }
                   await saveQueue();
                   broadcastQueue();
+                }
+              }
+              break;
+
+            case "forceSave":
+              // 检查是否为管理员请求
+              if (data.admin) {
+                try {
+                  await saveQueue();
+                  console.log("管理员手动强制保存队列");
+                  socket.send(JSON.stringify({
+                    type: "saveSuccess",
+                    message: "队列状态已保存",
+                    timestamp: new Date().toISOString(),
+                    queueLength: queue.length
+                  }));
+                } catch (error) {
+                  console.error("手动保存失败:", error);
+                  socket.send(JSON.stringify({
+                    type: "error",
+                    message: "保存队列失败，请重试"
+                  }));
                 }
               }
               break;
@@ -263,7 +308,7 @@ serve(async (req) => {
                   font-weight: bold;
               }
 
-              /* 状态栏样式改进 */
+              /* 状态栏样式统一 */
               .status-bar {
                   display: flex;
                   justify-content: flex-end;
@@ -272,16 +317,20 @@ serve(async (req) => {
                   flex-wrap: wrap;
               }
 
-              .admin-switch {
-                  padding: 8px 15px;
-                  background-color: #4A3F35;
-                  color: #FAF9F6;
-                  border: none;
-                  border-radius: 4px;
-                  cursor: pointer;
+              /* 统一按钮和状态显示样式 */
+              .admin-switch, .connection-status {
+                  padding: 10px 20px;
+                  border-radius: 8px;
                   font-weight: bold;
-                  transition: background-color 0.3s;
                   font-size: 14px;
+                  color: white;
+                  transition: background-color 0.3s;
+              }
+
+              .admin-switch {
+                  background-color: #4A3F35;
+                  border: none;
+                  cursor: pointer;
               }
 
               .admin-switch:hover {
@@ -290,6 +339,14 @@ serve(async (req) => {
               
               .admin-active {
                   background-color: #6A5F45;
+              }
+
+              .connected {
+                  background-color: #27ae60;
+              }
+
+              .disconnected {
+                  background-color: #e74c3c;
               }
 
               /* 队列信息样式 */
@@ -307,22 +364,6 @@ serve(async (req) => {
                   padding: 15px 25px;
                   border-radius: 8px;
                   box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-              }
-
-              .connection-status {
-                  padding: 10px 20px;
-                  border-radius: 8px;
-                  font-weight: bold;
-              }
-
-              .connected {
-                  background-color: #27ae60;
-                  color: white;
-              }
-
-              .disconnected {
-                  background-color: #e74c3c;
-                  color: white;
               }
 
               /* 队列表单样式 */
@@ -611,6 +652,28 @@ serve(async (req) => {
               .info {
                   background-color: #3498db;
               }
+
+              /* 管理员操作按钮样式 */
+              .admin-action {
+                  padding: 10px 20px;
+                  border-radius: 8px;
+                  font-weight: bold;
+                  font-size: 14px;
+                  color: white;
+                  background-color: #2980b9;
+                  border: none;
+                  cursor: pointer;
+                  transition: background-color 0.3s;
+                  display: none; /* 默认隐藏 */
+              }
+              
+              .admin-action:hover {
+                  background-color: #3498db;
+              }
+              
+              .admin-action:active {
+                  background-color: #1c638d;
+              }
           </style>
           <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
       </head>
@@ -653,10 +716,9 @@ serve(async (req) => {
                       当前排队人数: <span id="queueCount">0</span>
                   </div>
                   <div class="status-bar">
-                      <div id="connectionStatus" class="connection-status disconnected">
-                          未连接
-                      </div>
+                      <div id="connectionStatus" class="connection-status disconnected">未连接</div>
                       <button id="adminModeBtn" class="admin-switch">管理员模式</button>
+                      <button id="forceSaveBtn" class="admin-action" style="display: none;">强制保存队列</button>
                   </div>
               </div>
 
@@ -720,6 +782,7 @@ serve(async (req) => {
               let isAdmin = false;
               let currentUserId = 'user_' + Date.now(); // 默认为用户模式并分配ID
               let waitTimeUpdateInterval; // 等待时间更新计时器
+              let forceSaveBtn;
               
               // 获取DOM元素
               const nameInput = document.getElementById('nameInput');
@@ -1114,6 +1177,29 @@ serve(async (req) => {
                       if (event.target == modal) {
                           modal.style.display = 'none';
                       }
+                  }
+              }
+
+              // 在页面加载后初始化按钮
+              document.addEventListener('DOMContentLoaded', function() {
+                  // 已有变量初始化...
+                  
+                  forceSaveBtn = document.getElementById('forceSaveBtn');
+                  
+                  // 添加按钮点击事件
+                  if (forceSaveBtn) {
+                      forceSaveBtn.addEventListener('click', forceSaveQueue);
+                  }
+              });
+              
+              // 强制保存队列函数
+              function forceSaveQueue() {
+                  if (socket && socket.readyState === WebSocket.OPEN && isAdmin) {
+                      socket.send(JSON.stringify({
+                          type: 'forceSave',
+                          admin: true
+                      }));
+                      showNotification('正在保存队列...', 'info');
                   }
               }
           </script>
