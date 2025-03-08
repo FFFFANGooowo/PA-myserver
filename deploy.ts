@@ -1407,6 +1407,156 @@ serve(async (req) => {
       });
     }
     
+    if (requestPath === "/obs-view.html") {
+      const html = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OBS 队列视图</title>
+    <style>
+        /* 全局样式 */
+        body {
+            margin: 0;
+            padding: 0;
+            background: transparent;
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+            line-height: 1.4;
+        }
+
+        /* 队列容器 */
+        .queue-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        /* 队列项 */
+        .queue-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 8px;
+            padding: 8px;
+        }
+
+        /* 位次 */
+        .position {
+            width: 40px;
+            text-align: center;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        /* 姓名 */
+        .name {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* 等待时间 */
+        .wait-time {
+            width: 80px;
+            text-align: right;
+            font-family: monospace;
+        }
+
+        /* 低分辨率优化 */
+        @media (max-width: 480px) {
+            body {
+                font-size: 14px;
+            }
+            .queue-item {
+                padding: 6px;
+            }
+            .position {
+                width: 30px;
+                margin-right: 8px;
+            }
+            .wait-time {
+                width: 60px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="queue-container" id="queueContainer">
+        <!-- 队列项将通过JavaScript动态插入 -->
+    </div>
+
+    <script>
+        let ws;
+        let queueContainer = document.getElementById('queueContainer');
+
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(\`\${protocol}//\${window.location.host}\`);
+
+            ws.onopen = () => {
+                console.log('WebSocket连接已建立');
+                ws.send(JSON.stringify({type: 'getQueue'}));
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.type === 'queueUpdate') {
+                    updateQueueDisplay(data.queue);
+                }
+            };
+
+            ws.onclose = () => {
+                console.log('WebSocket连接已关闭');
+                setTimeout(connectWebSocket, 5000); // 5秒后重连
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket错误:', error);
+            };
+        }
+
+        function updateQueueDisplay(queue) {
+            queueContainer.innerHTML = queue.map((person, index) => \`
+                <div class="queue-item">
+                    <div class="position">\${index + 1}</div>
+                    <div class="name">\${person.name}</div>
+                    <div class="wait-time">\${formatWaitTime(new Date() - new Date(person.joinTime))}</div>
+                </div>
+            \`).join('');
+        }
+
+        function formatWaitTime(ms) {
+            const seconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const hours = Math.floor(minutes / 60);
+
+            if (hours > 0) {
+                return \`\${hours}h \${minutes % 60}m\`;
+            } else if (minutes > 0) {
+                return \`\${minutes}m \${seconds % 60}s\`;
+            } else {
+                return \`\${seconds}s\`;
+            }
+        }
+
+        // 初始化连接
+        connectWebSocket();
+    </script>
+</body>
+</html>`;
+
+      return new Response(html, {
+        headers: { "content-type": "text/html" },
+      });
+    }
+    
     // 处理其他静态文件请求
     const response = await fetch(`${GITHUB_RAW_URL}${requestPath}`);
     if (!response.ok) {
