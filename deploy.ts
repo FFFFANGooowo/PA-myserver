@@ -15,17 +15,38 @@ const QUEUE_KEY = ["queue_data"];
 // 初始化队列（从KV存储加载）
 let queue: QueuePerson[] = [];
 const loadQueue = async () => {
-  const entry = await kv.get(QUEUE_KEY);
-  if (entry.value) {
-    queue = entry.value as QueuePerson[];
-    console.log(`已从存储加载 ${queue.length} 个队列项目`);
+  try {
+    const entry = await kv.get(QUEUE_KEY);
+    if (entry.value) {
+      queue = entry.value as QueuePerson[];
+      console.log(`已从存储加载 ${queue.length} 个队列项目`);
+    } else {
+      queue = [];
+      console.log("队列为空");
+    }
+  } catch (error) {
+    console.error("加载队列失败:", error);
+    queue = [];
   }
 };
 
 // 保存队列到KV存储
-const saveQueue = async () => {
-  await kv.set(QUEUE_KEY, queue);
-  console.log(`已保存 ${queue.length} 个队列项目到存储`);
+const saveQueue = async (forceEmpty = false) => {
+  try {
+    if (forceEmpty) {
+      // 强制保存空队列
+      await kv.delete(QUEUE_KEY);
+      await kv.set(QUEUE_KEY, []);
+      queue = [];
+      console.log("已强制清空队列存储");
+    } else {
+      await kv.set(QUEUE_KEY, queue);
+      console.log(`已保存 ${queue.length} 个队列项目到存储`);
+    }
+  } catch (error) {
+    console.error("保存队列失败:", error);
+    throw error;
+  }
 };
 
 // 初始加载队列
@@ -62,14 +83,8 @@ serve(async (req) => {
       
       // 添加WebSocket事件处理
       socket.onopen = () => {
-        console.log("WebSocket连接已建立 - 服务器端");
+        console.log("客户端已连接");
         clients.add(socket);
-        
-        // 发送连接确认消息
-        socket.send(JSON.stringify({
-          type: "connectionEstablished",
-          timestamp: new Date().toISOString()
-        }));
         
         // 发送当前队列状态
         socket.send(JSON.stringify({
@@ -246,24 +261,19 @@ serve(async (req) => {
               if (data.admin) {
                 try {
                   console.log("管理员正在清空队列");
-                  // 记录之前的队列长度
                   const previousLength = queue.length;
                   
-                  // 清空内存中的队列
-                  queue = [];
+                  // 使用强制清空模式
+                  await saveQueue(true);
                   
-                  // 彻底删除KV存储中的队列，而不是保存空数组
-                  await kv.delete(QUEUE_KEY);
-                  console.log("已删除KV存储中的队列键");
+                  // 重新加载确认队列已清空
+                  await loadQueue();
                   
-                  // 为确认起见，验证队列是否已删除
-                  const checkEntry = await kv.get(QUEUE_KEY);
-                  if (!checkEntry.value) {
-                    console.log("验证成功：队列键已从KV存储中删除");
-                  } else {
-                    console.warn("警告：队列键仍存在于KV存储中");
-                    // 再次尝试保存空队列
-                    await saveQueue();
+                  if (queue.length > 0) {
+                    // 如果队列仍然不为空，记录错误并重试
+                    console.error("队列清空操作未完全生效，正在重试...");
+                    await saveQueue(true);
+                    await loadQueue();
                   }
                   
                   // 发送确认消息
@@ -273,74 +283,15 @@ serve(async (req) => {
                     timestamp: new Date().toISOString()
                   }));
                   
-                  // 广播队列更新
+                  // 广播空队列状态
                   broadcastQueue();
+                  
+                  console.log("队列清空操作完成，当前队列长度:", queue.length);
                 } catch (error) {
                   console.error("清空队列失败:", error);
                   socket.send(JSON.stringify({
                     type: "error",
                     message: "清空队列失败，请重试"
-                  }));
-                }
-              }
-              break;
-
-            case "adminDebug":
-              if (data.admin) {
-                try {
-                  console.log("管理员请求调试信息");
-                  
-                  switch (data.action) {
-                    case "checkStorage":
-                      // 检查KV存储状态
-                      const entry = await kv.get(QUEUE_KEY);
-                      const storageData = entry.value;
-                      const memoryLength = queue.length;
-                      const storageLength = storageData ? (Array.isArray(storageData) ? storageData.length : "非数组") : "无数据";
-                      
-                      console.log(`调试信息: 内存队列长度=${memoryLength}, 存储队列长度=${storageLength}`);
-                      
-                      socket.send(JSON.stringify({
-                        type: "debugInfo",
-                        memoryQueue: {length: memoryLength},
-                        storageQueue: {length: storageLength, exists: !!entry.value},
-                        timestamp: new Date().toISOString()
-                      }));
-                      break;
-                      
-                    case "forceSync":
-                      // 强制将内存队列同步到存储
-                      await saveQueue();
-                      console.log("强制同步：内存队列已保存到KV存储");
-                      
-                      socket.send(JSON.stringify({
-                        type: "debugInfo",
-                        message: "已强制同步内存队列到存储",
-                        queueLength: queue.length,
-                        timestamp: new Date().toISOString()
-                      }));
-                      break;
-                      
-                    case "resetStorage":
-                      // 重置存储（先删除后重建）
-                      await kv.delete(QUEUE_KEY);
-                      console.log("已删除KV存储键");
-                      await saveQueue();
-                      console.log("已重建KV存储键");
-                      
-                      socket.send(JSON.stringify({
-                        type: "debugInfo",
-                        message: "已重置KV存储",
-                        queueLength: queue.length,
-                        timestamp: new Date().toISOString()
-                      }));
-                      break;
-                  }
-                } catch (error) {
-                  console.error("调试操作失败:", error);
-                  socket.send(JSON.stringify({
-                    type: "error",
-                    message: `调试失败: ${error.message}`
                   }));
                 }
               }
@@ -351,27 +302,9 @@ serve(async (req) => {
         }
       };
       
-      socket.onclose = (event) => {
-        console.log(`WebSocket连接已关闭，代码: ${event.code}, 原因: ${event.reason}`);
-        
-        if (connectionStatus) {
-          connectionStatus.textContent = '已断开';
-          connectionStatus.className = 'connection-status disconnected';
-        }
-        
-        // 清除等待时间更新计时器
-        if (waitTimeUpdateInterval) {
-          clearInterval(waitTimeUpdateInterval);
-          waitTimeUpdateInterval = null;
-        }
-        
-        // 尝试重新连接
-        if (!window.isPageUnloading && reconnectAttempts < maxReconnectAttempts) {
-          reconnectAttempts++;
-          const delay = Math.min(1000 * Math.pow(1.5, reconnectAttempts), 30000);
-          console.log(`尝试重新连接 (${reconnectAttempts}/${maxReconnectAttempts})，延迟: ${delay}ms`);
-          setTimeout(connectWebSocket, delay);
-        }
+      socket.onclose = () => {
+        console.log("客户端断开连接");
+        clients.delete(socket);
       };
       
       return response;
@@ -825,24 +758,6 @@ serve(async (req) => {
               .danger-btn:hover {
                   background-color: #c0392b !important;
               }
-
-              .admin-debug {
-                  background-color: #9b59b6 !important;
-              }
-              
-              .admin-debug:hover {
-                  background-color: #8e44ad !important;
-              }
-              
-              .debug-info {
-                  background-color: #f1f1f1;
-                  border: 1px solid #ddd;
-                  padding: 10px;
-                  margin-top: 10px;
-                  font-family: monospace;
-                  white-space: pre-wrap;
-                  border-radius: 5px;
-              }
           </style>
           <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
       </head>
@@ -889,7 +804,6 @@ serve(async (req) => {
                       <button id="adminModeBtn" class="admin-switch">管理员模式</button>
                       <button id="forceSaveBtn" class="admin-action" style="display: none;">强制保存队列</button>
                       <button id="clearQueueBtn" class="admin-action admin-danger" style="display: none;">清空队列</button>
-                      <button id="debugBtn" class="admin-action admin-debug" style="display: none;">存储诊断</button>
                   </div>
               </div>
 
@@ -1043,140 +957,116 @@ serve(async (req) => {
               
               // WebSocket连接函数
               function connectWebSocket() {
-                  // 如果已有连接，先关闭
-                  if (socket) {
-                      try {
-                          socket.close();
-                      } catch (e) {
-                          console.error("关闭旧连接时出错:", e);
-                      }
-                  }
+                  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                  const wsUrl = \`\${protocol}//\${window.location.host}\`;
+                  console.log("连接到WebSocket:", wsUrl);
                   
-                  // 更新连接状态UI
                   if (connectionStatus) {
                       connectionStatus.textContent = '连接中...';
                       connectionStatus.className = 'connection-status';
                   }
                   
-                  // 确定WebSocket URL
-                  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                  const wsUrl = `${protocol}//${window.location.host}`;
-                  console.log(`尝试连接到WebSocket: ${wsUrl}`);
+                  socket = new WebSocket(wsUrl);
                   
-                  // 创建新连接
-                  try {
-                      socket = new WebSocket(wsUrl);
-                      
-                      socket.onopen = () => {
-                          console.log("WebSocket连接已建立 - 客户端");
-                          if (connectionStatus) {
-                              connectionStatus.textContent = '已连接';
-                              connectionStatus.className = 'connection-status connected';
-                          }
-                          reconnectAttempts = 0;
-                          
-                          // 请求当前队列数据
-                          socket.send(JSON.stringify({ type: 'getQueue' }));
-                          
-                          // 启动等待时间更新
-                          startWaitTimeUpdates();
-                      };
-                      
-                      socket.onmessage = (event) => {
-                          try {
-                              const data = JSON.parse(event.data);
-                              console.log("收到消息:", data);
-                              
-                              switch(data.type) {
-                                  case "queueUpdate":
-                                      // 更新界面上的队列
-                                      updateQueueDisplay(data.queue);
-                                      break;
-                                      
-                                  case "adminAuthSuccess":
-                                      isAdmin = true;
-                                      adminLogin.style.display = 'none';
-                                      adminModeBtn.textContent = '管理员模式（已激活）';
-                                      adminModeBtn.classList.add('admin-active');
-                                      
-                                      // 显示管理员专属按钮
-                                      if (forceSaveBtn) {
-                                          forceSaveBtn.style.display = 'inline-block';
-                                      }
-                                      if (clearQueueBtn) {
-                                          clearQueueBtn.style.display = 'inline-block';
-                                      }
-                                      
-                                      showNotification('管理员验证成功', 'success');
-                                      
-                                      // 重新加载队列以显示管理控件
-                                      socket.send(JSON.stringify({type: 'getQueue'}));
-                                      break;
-                                      
-                                  case "joinSuccess":
-                                      showNotification('已成功加入队列', 'success');
-                                      break;
-                                  
-                                  case "error":
-                                      showNotification(data.message, 'error');
-                                      break;
-                                  
-                                  case "success":
-                                      showNotification(data.message, 'success');
-                                      break;
-                                  
-                                  case "userRemoveConfirmed":
-                                      showNotification('用户已被移除', 'success');
-                                      break;
-                                  
-                                  case "saveSuccess":
-                                      showNotification(data.message, 'success');
-                                      break;
-                                  
-                                  case "queueCleared":
-                                      showNotification(data.message, 'success');
-                                      break;
-                              }
-                          } catch (error) {
-                              console.error('处理消息时出错:', error);
-                          }
-                      };
-                      
-                      socket.onclose = (event) => {
-                          console.log(`WebSocket连接已关闭，代码: ${event.code}, 原因: ${event.reason}`);
-                          
-                          if (connectionStatus) {
-                              connectionStatus.textContent = '已断开';
-                              connectionStatus.className = 'connection-status disconnected';
-                          }
-                          
-                          // 清除等待时间更新计时器
-                          if (waitTimeUpdateInterval) {
-                              clearInterval(waitTimeUpdateInterval);
-                              waitTimeUpdateInterval = null;
-                          }
-                          
-                          // 尝试重新连接
-                          if (!window.isPageUnloading && reconnectAttempts < maxReconnectAttempts) {
-                              reconnectAttempts++;
-                              const delay = Math.min(1000 * Math.pow(1.5, reconnectAttempts), 30000);
-                              console.log(`尝试重新连接 (${reconnectAttempts}/${maxReconnectAttempts})，延迟: ${delay}ms`);
-                              setTimeout(connectWebSocket, delay);
-                          }
-                      };
-                      
-                      socket.onerror = (error) => {
-                          console.error("WebSocket错误:", error);
-                      };
-                  } catch (error) {
-                      console.error("创建WebSocket连接失败:", error);
+                  socket.onopen = () => {
+                      console.log("WebSocket连接已建立");
                       if (connectionStatus) {
-                          connectionStatus.textContent = '连接失败';
+                          connectionStatus.textContent = '已连接';
+                          connectionStatus.className = 'connection-status connected';
+                      }
+                      reconnectAttempts = 0;
+                      
+                      // 请求当前队列数据
+                      socket.send(JSON.stringify({ type: 'getQueue' }));
+                      
+                      // 启动等待时间更新
+                      startWaitTimeUpdates();
+                  };
+                  
+                  socket.onmessage = (event) => {
+                      try {
+                          const data = JSON.parse(event.data);
+                          console.log("收到消息:", data);
+                          
+                          switch(data.type) {
+                              case "queueUpdate":
+                                  // 更新界面上的队列
+                                  updateQueueDisplay(data.queue);
+                                  break;
+                                  
+                              case "adminAuthSuccess":
+                                  isAdmin = true;
+                                  adminLogin.style.display = 'none';
+                                  adminModeBtn.textContent = '管理员模式（已激活）';
+                                  adminModeBtn.classList.add('admin-active');
+                                  
+                                  // 显示管理员专属按钮
+                                  if (forceSaveBtn) {
+                                      forceSaveBtn.style.display = 'inline-block';
+                                  }
+                                  if (clearQueueBtn) {
+                                      clearQueueBtn.style.display = 'inline-block';
+                                  }
+                                  
+                                  showNotification('管理员验证成功', 'success');
+                                  
+                                  // 重新加载队列以显示管理控件
+                                  socket.send(JSON.stringify({type: 'getQueue'}));
+                                  break;
+                                  
+                              case "joinSuccess":
+                                  showNotification('已成功加入队列', 'success');
+                                  break;
+                              
+                              case "error":
+                                  showNotification(data.message, 'error');
+                                  break;
+                              
+                              case "success":
+                                  showNotification(data.message, 'success');
+                                  break;
+                              
+                              case "userRemoveConfirmed":
+                                  showNotification('用户已被移除', 'success');
+                                  break;
+                              
+                              case "saveSuccess":
+                                  showNotification(data.message, 'success');
+                                  break;
+                              
+                              case "queueCleared":
+                                  showNotification(data.message, 'success');
+                                  break;
+                          }
+                      } catch (error) {
+                          console.error('处理消息时出错:', error);
+                      }
+                  };
+                  
+                  socket.onclose = (event) => {
+                      console.log("WebSocket连接已关闭:", event.code, event.reason);
+                      if (connectionStatus) {
+                          connectionStatus.textContent = '已断开';
                           connectionStatus.className = 'connection-status disconnected';
                       }
-                      // 短暂延迟后尝试重连
-                      setTimeout(connectWebSocket, 3000);
-                  }
+                      
+                      // 清除等待时间更新计时器
+                      if (waitTimeUpdateInterval) {
+                          clearInterval(waitTimeUpdateInterval);
+                          waitTimeUpdateInterval = null;
+                      }
+                      
+                      // 尝试重新连接（如果不是因为页面卸载导致的关闭）
+                      if (!window.isUnloading && reconnectAttempts < maxReconnectAttempts) {
+                          reconnectAttempts++;
+                          console.log(\`尝试重新连接 (\${reconnectAttempts}/\${maxReconnectAttempts})...\`);
+                          setTimeout(connectWebSocket, reconnectDelay);
+                      }
+                  };
+                  
+                  socket.onerror = (error) => {
+                      console.error("WebSocket错误:", error);
+                  };
               }
               
               // 启动定时更新等待时间
@@ -1498,101 +1388,6 @@ serve(async (req) => {
                           admin: true
                       }));
                       showNotification('正在清空队列...', 'info');
-                  }
-              }
-
-              // 调试相关变量
-              let debugBtn;
-              
-              // 初始化
-              document.addEventListener('DOMContentLoaded', function() {
-                  // 获取调试按钮
-                  debugBtn = document.getElementById('debugBtn');
-                  
-                  // 添加调试按钮事件
-                  if (debugBtn) {
-                      debugBtn.addEventListener('click', showDebugMenu);
-                  }
-              });
-              
-              // 显示调试菜单
-              function showDebugMenu() {
-                  showConfirmDialog(
-                      '存储诊断工具',
-                      '选择一个操作:\n1. 检查存储状态\n2. 强制同步内存到存储\n3. 重置存储',
-                      () => {
-                          // 修改调试菜单创建方式
-                          const debugMenu = document.createElement('div');
-                          debugMenu.className = 'debug-menu';
-                          
-                          // 创建按钮而不是使用innerHTML
-                          const checkBtn = document.createElement('button');
-                          checkBtn.textContent = '检查存储状态';
-                          checkBtn.addEventListener('click', checkStorage);
-                          
-                          const syncBtn = document.createElement('button');
-                          syncBtn.textContent = '强制同步';
-                          syncBtn.addEventListener('click', forceSyncStorage);
-                          
-                          const resetBtn = document.createElement('button'); 
-                          resetBtn.textContent = '重置存储';
-                          resetBtn.className = 'danger-btn';
-                          resetBtn.addEventListener('click', resetStorage);
-                          
-                          // 添加按钮到菜单
-                          debugMenu.appendChild(checkBtn);
-                          debugMenu.appendChild(syncBtn);
-                          debugMenu.appendChild(resetBtn);
-                          
-                          // 关闭确认对话框并显示调试菜单
-                          confirmDialog.style.display = 'none';
-                          const container = document.querySelector('.page-content');
-                          if (container) {
-                              // 移除已有的调试菜单
-                              const oldMenu = document.querySelector('.debug-menu');
-                              if (oldMenu) oldMenu.remove();
-                              
-                              container.insertBefore(debugMenu, container.firstChild);
-                          }
-                      }
-                  );
-              }
-              
-              // 调试功能 - 检查存储状态
-              function checkStorage() {
-                  if (socket && socket.readyState === WebSocket.OPEN && isAdmin) {
-                      socket.send(JSON.stringify({
-                          type: 'adminDebug',
-                          action: 'checkStorage',
-                          admin: true
-                      }));
-                      showNotification('正在检查存储状态...', 'info');
-                  }
-              }
-              
-              // 调试功能 - 强制同步
-              function forceSyncStorage() {
-                  if (socket && socket.readyState === WebSocket.OPEN && isAdmin) {
-                      socket.send(JSON.stringify({
-                          type: 'adminDebug',
-                          action: 'forceSync',
-                          admin: true
-                      }));
-                      showNotification('正在强制同步...', 'info');
-                  }
-              }
-              
-              // 调试功能 - 重置存储
-              function resetStorage() {
-                  if (socket && socket.readyState === WebSocket.OPEN && isAdmin) {
-                      if (confirm('确定要重置存储吗？这将删除并重建存储键。')) {
-                          socket.send(JSON.stringify({
-                              type: 'adminDebug',
-                              action: 'resetStorage',
-                              admin: true
-                          }));
-                          showNotification('正在重置存储...', 'info');
-                      }
                   }
               }
           </script>
