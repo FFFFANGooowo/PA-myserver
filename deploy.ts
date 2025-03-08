@@ -1428,13 +1428,18 @@ serve(async (req) => {
 
         /* 标题区域 */
         .header {
-            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 8px;
+            padding: 8px;
+            margin-bottom: 10px;
         }
 
         .title {
             font-size: 24px;
             font-weight: bold;
-            margin-bottom: 4px;
         }
 
         .byline {
@@ -1489,6 +1494,9 @@ serve(async (req) => {
         @media (max-width: 480px) {
             body {
                 font-size: 14px;
+            }
+            .header {
+                padding: 6px;
             }
             .title {
                 font-size: 20px;
