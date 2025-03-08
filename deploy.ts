@@ -62,8 +62,14 @@ serve(async (req) => {
       
       // 添加WebSocket事件处理
       socket.onopen = () => {
-        console.log("客户端已连接");
+        console.log("WebSocket连接已建立 - 服务器端");
         clients.add(socket);
+        
+        // 发送连接确认消息
+        socket.send(JSON.stringify({
+          type: "connectionEstablished",
+          timestamp: new Date().toISOString()
+        }));
         
         // 发送当前队列状态
         socket.send(JSON.stringify({
@@ -345,9 +351,27 @@ serve(async (req) => {
         }
       };
       
-      socket.onclose = () => {
-        console.log("客户端断开连接");
-        clients.delete(socket);
+      socket.onclose = (event) => {
+        console.log(`WebSocket连接已关闭，代码: ${event.code}, 原因: ${event.reason}`);
+        
+        if (connectionStatus) {
+          connectionStatus.textContent = '已断开';
+          connectionStatus.className = 'connection-status disconnected';
+        }
+        
+        // 清除等待时间更新计时器
+        if (waitTimeUpdateInterval) {
+          clearInterval(waitTimeUpdateInterval);
+          waitTimeUpdateInterval = null;
+        }
+        
+        // 尝试重新连接
+        if (!window.isPageUnloading && reconnectAttempts < maxReconnectAttempts) {
+          reconnectAttempts++;
+          const delay = Math.min(1000 * Math.pow(1.5, reconnectAttempts), 30000);
+          console.log(`尝试重新连接 (${reconnectAttempts}/${maxReconnectAttempts})，延迟: ${delay}ms`);
+          setTimeout(connectWebSocket, delay);
+        }
       };
       
       return response;
@@ -1019,116 +1043,140 @@ serve(async (req) => {
               
               // WebSocket连接函数
               function connectWebSocket() {
-                  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                  const wsUrl = \`\${protocol}//\${window.location.host}\`;
-                  console.log("连接到WebSocket:", wsUrl);
+                  // 如果已有连接，先关闭
+                  if (socket) {
+                      try {
+                          socket.close();
+                      } catch (e) {
+                          console.error("关闭旧连接时出错:", e);
+                      }
+                  }
                   
+                  // 更新连接状态UI
                   if (connectionStatus) {
                       connectionStatus.textContent = '连接中...';
                       connectionStatus.className = 'connection-status';
                   }
                   
-                  socket = new WebSocket(wsUrl);
+                  // 确定WebSocket URL
+                  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                  const wsUrl = `${protocol}//${window.location.host}`;
+                  console.log(`尝试连接到WebSocket: ${wsUrl}`);
                   
-                  socket.onopen = () => {
-                      console.log("WebSocket连接已建立");
-                      if (connectionStatus) {
-                          connectionStatus.textContent = '已连接';
-                          connectionStatus.className = 'connection-status connected';
-                      }
-                      reconnectAttempts = 0;
+                  // 创建新连接
+                  try {
+                      socket = new WebSocket(wsUrl);
                       
-                      // 请求当前队列数据
-                      socket.send(JSON.stringify({ type: 'getQueue' }));
-                      
-                      // 启动等待时间更新
-                      startWaitTimeUpdates();
-                  };
-                  
-                  socket.onmessage = (event) => {
-                      try {
-                          const data = JSON.parse(event.data);
-                          console.log("收到消息:", data);
-                          
-                          switch(data.type) {
-                              case "queueUpdate":
-                                  // 更新界面上的队列
-                                  updateQueueDisplay(data.queue);
-                                  break;
-                                  
-                              case "adminAuthSuccess":
-                                  isAdmin = true;
-                                  adminLogin.style.display = 'none';
-                                  adminModeBtn.textContent = '管理员模式（已激活）';
-                                  adminModeBtn.classList.add('admin-active');
-                                  
-                                  // 显示管理员专属按钮
-                                  if (forceSaveBtn) {
-                                      forceSaveBtn.style.display = 'inline-block';
-                                  }
-                                  if (clearQueueBtn) {
-                                      clearQueueBtn.style.display = 'inline-block';
-                                  }
-                                  
-                                  showNotification('管理员验证成功', 'success');
-                                  
-                                  // 重新加载队列以显示管理控件
-                                  socket.send(JSON.stringify({type: 'getQueue'}));
-                                  break;
-                                  
-                              case "joinSuccess":
-                                  showNotification('已成功加入队列', 'success');
-                                  break;
-                              
-                              case "error":
-                                  showNotification(data.message, 'error');
-                                  break;
-                              
-                              case "success":
-                                  showNotification(data.message, 'success');
-                                  break;
-                              
-                              case "userRemoveConfirmed":
-                                  showNotification('用户已被移除', 'success');
-                                  break;
-                              
-                              case "saveSuccess":
-                                  showNotification(data.message, 'success');
-                                  break;
-                              
-                              case "queueCleared":
-                                  showNotification(data.message, 'success');
-                                  break;
+                      socket.onopen = () => {
+                          console.log("WebSocket连接已建立 - 客户端");
+                          if (connectionStatus) {
+                              connectionStatus.textContent = '已连接';
+                              connectionStatus.className = 'connection-status connected';
                           }
-                      } catch (error) {
-                          console.error('处理消息时出错:', error);
-                      }
-                  };
-                  
-                  socket.onclose = (event) => {
-                      console.log("WebSocket连接已关闭:", event.code, event.reason);
+                          reconnectAttempts = 0;
+                          
+                          // 请求当前队列数据
+                          socket.send(JSON.stringify({ type: 'getQueue' }));
+                          
+                          // 启动等待时间更新
+                          startWaitTimeUpdates();
+                      };
+                      
+                      socket.onmessage = (event) => {
+                          try {
+                              const data = JSON.parse(event.data);
+                              console.log("收到消息:", data);
+                              
+                              switch(data.type) {
+                                  case "queueUpdate":
+                                      // 更新界面上的队列
+                                      updateQueueDisplay(data.queue);
+                                      break;
+                                      
+                                  case "adminAuthSuccess":
+                                      isAdmin = true;
+                                      adminLogin.style.display = 'none';
+                                      adminModeBtn.textContent = '管理员模式（已激活）';
+                                      adminModeBtn.classList.add('admin-active');
+                                      
+                                      // 显示管理员专属按钮
+                                      if (forceSaveBtn) {
+                                          forceSaveBtn.style.display = 'inline-block';
+                                      }
+                                      if (clearQueueBtn) {
+                                          clearQueueBtn.style.display = 'inline-block';
+                                      }
+                                      
+                                      showNotification('管理员验证成功', 'success');
+                                      
+                                      // 重新加载队列以显示管理控件
+                                      socket.send(JSON.stringify({type: 'getQueue'}));
+                                      break;
+                                      
+                                  case "joinSuccess":
+                                      showNotification('已成功加入队列', 'success');
+                                      break;
+                                  
+                                  case "error":
+                                      showNotification(data.message, 'error');
+                                      break;
+                                  
+                                  case "success":
+                                      showNotification(data.message, 'success');
+                                      break;
+                                  
+                                  case "userRemoveConfirmed":
+                                      showNotification('用户已被移除', 'success');
+                                      break;
+                                  
+                                  case "saveSuccess":
+                                      showNotification(data.message, 'success');
+                                      break;
+                                  
+                                  case "queueCleared":
+                                      showNotification(data.message, 'success');
+                                      break;
+                              }
+                          } catch (error) {
+                              console.error('处理消息时出错:', error);
+                          }
+                      };
+                      
+                      socket.onclose = (event) => {
+                          console.log(`WebSocket连接已关闭，代码: ${event.code}, 原因: ${event.reason}`);
+                          
+                          if (connectionStatus) {
+                              connectionStatus.textContent = '已断开';
+                              connectionStatus.className = 'connection-status disconnected';
+                          }
+                          
+                          // 清除等待时间更新计时器
+                          if (waitTimeUpdateInterval) {
+                              clearInterval(waitTimeUpdateInterval);
+                              waitTimeUpdateInterval = null;
+                          }
+                          
+                          // 尝试重新连接
+                          if (!window.isPageUnloading && reconnectAttempts < maxReconnectAttempts) {
+                              reconnectAttempts++;
+                              const delay = Math.min(1000 * Math.pow(1.5, reconnectAttempts), 30000);
+                              console.log(`尝试重新连接 (${reconnectAttempts}/${maxReconnectAttempts})，延迟: ${delay}ms`);
+                              setTimeout(connectWebSocket, delay);
+                          }
+                      };
+                      
+                      socket.onerror = (error) => {
+                          console.error("WebSocket错误:", error);
+                      };
+                  } catch (error) {
+                      console.error("创建WebSocket连接失败:", error);
                       if (connectionStatus) {
-                          connectionStatus.textContent = '已断开';
+                          connectionStatus.textContent = '连接失败';
                           connectionStatus.className = 'connection-status disconnected';
                       }
-                      
-                      // 清除等待时间更新计时器
-                      if (waitTimeUpdateInterval) {
-                          clearInterval(waitTimeUpdateInterval);
-                          waitTimeUpdateInterval = null;
-                      }
-                      
-                      // 尝试重新连接（如果不是因为页面卸载导致的关闭）
-                      if (!window.isUnloading && reconnectAttempts < maxReconnectAttempts) {
-                          reconnectAttempts++;
-                          console.log(\`尝试重新连接 (\${reconnectAttempts}/\${maxReconnectAttempts})...\`);
-                          setTimeout(connectWebSocket, reconnectDelay);
-                      }
-                  };
-                  
-                  socket.onerror = (error) => {
-                      console.error("WebSocket错误:", error);
-                  };
+                      // 短暂延迟后尝试重连
+                      setTimeout(connectWebSocket, 3000);
+                  }
               }
               
               // 启动定时更新等待时间
