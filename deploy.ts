@@ -1418,7 +1418,7 @@ serve(async (req) => {
         /* 全局样式 */
         body {
             margin: 0;
-            padding: 0;
+            padding: 10px; /* 添加全局padding */
             background: transparent;
             color: white;
             font-family: Arial, sans-serif;
@@ -1433,27 +1433,25 @@ serve(async (req) => {
             align-items: center;
             background: rgba(0, 0, 0, 0.7);
             border-radius: 8px;
-            padding: 8px;
+            padding: 12px 16px; /* 增加内边距 */
             margin-bottom: 10px;
         }
 
         .title {
             font-size: 24px;
             font-weight: bold;
+            margin-right: 16px; /* 增加标题和署名间距 */
         }
 
         .byline {
             font-size: 14px;
             opacity: 0.8;
+            white-space: nowrap; /* 防止署名换行 */
         }
 
         /* 队列容器 */
         .queue-container {
-            position: absolute;
-            top: 60px; /* 为标题留出空间 */
-            left: 0;
             width: 100%;
-            padding: 10px;
             box-sizing: border-box;
         }
 
@@ -1464,7 +1462,7 @@ serve(async (req) => {
             margin-bottom: 8px;
             background: rgba(0, 0, 0, 0.7);
             border-radius: 8px;
-            padding: 8px;
+            padding: 8px 16px; /* 与标题区域padding一致 */
         }
 
         /* 位次 */
@@ -1494,18 +1492,20 @@ serve(async (req) => {
         @media (max-width: 480px) {
             body {
                 font-size: 14px;
+                padding: 8px;
             }
             .header {
-                padding: 6px;
+                padding: 8px 12px;
             }
             .title {
                 font-size: 20px;
+                margin-right: 12px;
             }
             .byline {
                 font-size: 12px;
             }
             .queue-item {
-                padding: 6px;
+                padding: 6px 12px;
             }
             .position {
                 width: 30px;
