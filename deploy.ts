@@ -1426,10 +1426,26 @@ serve(async (req) => {
             line-height: 1.4;
         }
 
+        /* 标题区域 */
+        .header {
+            margin-bottom: 15px;
+        }
+
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .byline {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
         /* 队列容器 */
         .queue-container {
             position: absolute;
-            top: 0;
+            top: 60px; /* 为标题留出空间 */
             left: 0;
             width: 100%;
             padding: 10px;
@@ -1474,6 +1490,12 @@ serve(async (req) => {
             body {
                 font-size: 14px;
             }
+            .title {
+                font-size: 20px;
+            }
+            .byline {
+                font-size: 12px;
+            }
             .queue-item {
                 padding: 6px;
             }
@@ -1488,6 +1510,10 @@ serve(async (req) => {
     </style>
 </head>
 <body>
+    <div class="header">
+        <div class="title">队伍情况</div>
+        <div class="byline">By SammFang</div>
+    </div>
     <div class="queue-container" id="queueContainer">
         <!-- 队列项将通过JavaScript动态插入 -->
     </div>
