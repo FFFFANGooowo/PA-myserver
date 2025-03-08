@@ -895,11 +895,18 @@ serve(async (req) => {
                               case "adminAuthSuccess":
                                   isAdmin = true;
                                   adminLogin.style.display = 'none';
-                                  adminModeBtn.textContent = '退出管理员模式';
+                                  adminModeBtn.textContent = '管理员模式（已激活）';
                                   adminModeBtn.classList.add('admin-active');
-                                  showNotification('管理员登录成功', 'success');
-                                  // 更新队列显示以添加管理员控制
-                                  socket.send(JSON.stringify({ type: 'getQueue' }));
+                                  
+                                  // 显示管理员专属按钮
+                                  if (forceSaveBtn) {
+                                      forceSaveBtn.style.display = 'inline-block';
+                                  }
+                                  
+                                  showNotification('管理员验证成功', 'success');
+                                  
+                                  // 重新加载队列以显示管理控件
+                                  socket.send(JSON.stringify({type: 'getQueue'}));
                                   break;
                                   
                               case "joinSuccess":
@@ -913,9 +920,17 @@ serve(async (req) => {
                               case "success":
                                   showNotification(data.message, 'success');
                                   break;
+                              
+                              case "userRemoveConfirmed":
+                                  showNotification('用户已被移除', 'success');
+                                  break;
+                              
+                              case "saveSuccess":
+                                  showNotification(data.message, 'success');
+                                  break;
                           }
-                      } catch (e) {
-                          console.error("处理消息出错:", e);
+                      } catch (error) {
+                          console.error('处理消息时出错:', error);
                       }
                   };
                   
