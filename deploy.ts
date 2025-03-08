@@ -234,6 +234,40 @@ serve(async (req) => {
                 }
               }
               break;
+
+            case "clearQueue":
+              // 检查是否为管理员请求
+              if (data.admin) {
+                try {
+                  console.log("管理员正在清空队列");
+                  // 记录之前的队列长度
+                  const previousLength = queue.length;
+                  
+                  // 清空队列
+                  queue = [];
+                  
+                  // 保存到KV存储
+                  await saveQueue();
+                  console.log("队列已清空并保存");
+                  
+                  // 发送确认消息
+                  socket.send(JSON.stringify({
+                    type: "queueCleared",
+                    message: `队列已清空 (移除了${previousLength}个项目)`,
+                    timestamp: new Date().toISOString()
+                  }));
+                  
+                  // 广播队列更新
+                  broadcastQueue();
+                } catch (error) {
+                  console.error("清空队列失败:", error);
+                  socket.send(JSON.stringify({
+                    type: "error",
+                    message: "清空队列失败，请重试"
+                  }));
+                }
+              }
+              break;
           }
         } catch (error) {
           console.error("处理消息时出错:", error);
@@ -674,6 +708,28 @@ serve(async (req) => {
               .admin-action:active {
                   background-color: #1c638d;
               }
+
+              /* 危险操作按钮样式 */
+              .admin-danger {
+                  background-color: #e74c3c !important;
+              }
+              
+              .admin-danger:hover {
+                  background-color: #c0392b !important;
+              }
+              
+              .confirm-content {
+                  max-width: 400px;
+              }
+              
+              .danger-btn {
+                  background-color: #e74c3c !important;
+                  color: white !important;
+              }
+              
+              .danger-btn:hover {
+                  background-color: #c0392b !important;
+              }
           </style>
           <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
       </head>
@@ -719,6 +775,7 @@ serve(async (req) => {
                       <div id="connectionStatus" class="connection-status disconnected">未连接</div>
                       <button id="adminModeBtn" class="admin-switch">管理员模式</button>
                       <button id="forceSaveBtn" class="admin-action" style="display: none;">强制保存队列</button>
+                      <button id="clearQueueBtn" class="admin-action admin-danger" style="display: none;">清空队列</button>
                   </div>
               </div>
 
@@ -729,6 +786,18 @@ serve(async (req) => {
               
               <!-- 通知容器 -->
               <div id="notificationContainer" class="notification-container"></div>
+
+              <!-- 添加确认对话框 -->
+              <div id="confirmDialog" class="modal">
+                  <div class="modal-content confirm-content">
+                      <h3 id="confirmTitle">确认操作</h3>
+                      <p id="confirmMessage"></p>
+                      <div class="modal-buttons">
+                          <button id="confirmYes" class="danger-btn">确认</button>
+                          <button id="confirmNo">取消</button>
+                      </div>
+                  </div>
+              </div>
           </div>
 
           <!-- 管理员控制按钮模板 -->
@@ -783,6 +852,11 @@ serve(async (req) => {
               let currentUserId = 'user_' + Date.now(); // 默认为用户模式并分配ID
               let waitTimeUpdateInterval; // 等待时间更新计时器
               let forceSaveBtn;
+              let clearQueueBtn;
+              let confirmDialog;
+              let confirmTitle;
+              let confirmMessage;
+              let pendingConfirmAction = null;
               
               // 获取DOM元素
               const nameInput = document.getElementById('nameInput');
@@ -902,6 +976,9 @@ serve(async (req) => {
                                   if (forceSaveBtn) {
                                       forceSaveBtn.style.display = 'inline-block';
                                   }
+                                  if (clearQueueBtn) {
+                                      clearQueueBtn.style.display = 'inline-block';
+                                  }
                                   
                                   showNotification('管理员验证成功', 'success');
                                   
@@ -926,6 +1003,10 @@ serve(async (req) => {
                                   break;
                               
                               case "saveSuccess":
+                                  showNotification(data.message, 'success');
+                                  break;
+                              
+                              case "queueCleared":
                                   showNotification(data.message, 'success');
                                   break;
                           }
@@ -1200,10 +1281,23 @@ serve(async (req) => {
                   // 已有变量初始化...
                   
                   forceSaveBtn = document.getElementById('forceSaveBtn');
+                  clearQueueBtn = document.getElementById('clearQueueBtn');
+                  confirmDialog = document.getElementById('confirmDialog');
+                  confirmTitle = document.getElementById('confirmTitle');
+                  confirmMessage = document.getElementById('confirmMessage');
+                  confirmYesBtn = document.getElementById('confirmYes');
+                  confirmNoBtn = document.getElementById('confirmNo');
                   
                   // 添加按钮点击事件
                   if (forceSaveBtn) {
                       forceSaveBtn.addEventListener('click', forceSaveQueue);
+                  }
+                  if (clearQueueBtn) {
+                      clearQueueBtn.addEventListener('click', confirmClearQueue);
+                  }
+                  if (confirmYesBtn && confirmNoBtn) {
+                      confirmYesBtn.addEventListener('click', executeConfirmedAction);
+                      confirmNoBtn.addEventListener('click', cancelConfirmDialog);
                   }
               });
               
@@ -1215,6 +1309,57 @@ serve(async (req) => {
                           admin: true
                       }));
                       showNotification('正在保存队列...', 'info');
+                  }
+              }
+
+              // 显示确认对话框
+              function showConfirmDialog(title, message, action) {
+                  if (!confirmDialog) return;
+                  
+                  confirmTitle.textContent = title;
+                  confirmMessage.textContent = message;
+                  pendingConfirmAction = action;
+                  
+                  confirmDialog.style.display = 'flex';
+              }
+              
+              // 取消确认对话框
+              function cancelConfirmDialog() {
+                  if (!confirmDialog) return;
+                  
+                  confirmDialog.style.display = 'none';
+                  pendingConfirmAction = null;
+              }
+              
+              // 执行确认的操作
+              function executeConfirmedAction() {
+                  if (pendingConfirmAction) {
+                      pendingConfirmAction();
+                      pendingConfirmAction = null;
+                  }
+                  
+                  if (confirmDialog) {
+                      confirmDialog.style.display = 'none';
+                  }
+              }
+              
+              // 确认清空队列
+              function confirmClearQueue() {
+                  showConfirmDialog(
+                      '清空队列',
+                      '确定要清空整个队列吗？此操作不可撤销。',
+                      clearQueue
+                  );
+              }
+              
+              // 清空队列函数
+              function clearQueue() {
+                  if (socket && socket.readyState === WebSocket.OPEN && isAdmin) {
+                      socket.send(JSON.stringify({
+                          type: 'clearQueue',
+                          admin: true
+                      }));
+                      showNotification('正在清空队列...', 'info');
                   }
               }
           </script>
