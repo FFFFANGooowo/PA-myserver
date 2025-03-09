@@ -1550,8 +1550,10 @@ serve(async (req) => {
     </style>
 </head>
 <body>
-    <div class="text"><p style="text-indent: 4px;">队伍情况</p></div>
-    <div class="byline">访问samm-paserver.deno.dev参与排队</div>
+    <div class="header">
+      <div class="text"><p style="text-indent: 12px;">队伍情况</p></div>
+      <div class="byline"><p style="text-indent: 12px;" style="margin-top: -4px;">访问samm-paserver.deno.dev参与排队</p></div>
+    <div>
     <div class="queue-container" id="queueContainer">
         <!-- 队列项将通过JavaScript动态插入 -->
     </div>
