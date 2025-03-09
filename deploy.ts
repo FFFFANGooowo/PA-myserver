@@ -731,50 +731,6 @@ serve(async (req) => {
               .danger-btn:hover {
                   background-color: #c0392b !important;
               }
-
-              /* 添加OBS提示样式 */
-              .obs-tip {
-                  text-align: center;
-                  margin: 20px 0;
-                  font-size: 14px;
-                  color: #666;
-              }
-
-              .obs-tip .url {
-                  color: #007bff;
-                  cursor: pointer;
-                  text-decoration: underline;
-              }
-
-              .obs-tip .url:hover {
-                  color: #0056b3;
-              }
-
-              /* 修改底栏样式 */
-              .footer {
-                  display: flex;
-                  justify-content: space-between;
-                  align-items: center;
-                  padding: 10px 20px;
-                  background-color: #f5f5f5;
-                  border-top: 1px solid #ddd;
-                  font-size: 14px;
-                  color: #666;
-              }
-
-              .footer .obs-tip {
-                  margin: 0;
-              }
-
-              .footer .url {
-                  color: #007bff;
-                  cursor: pointer;
-                  text-decoration: underline;
-              }
-
-              .footer .url:hover {
-                  color: #0056b3;
-              }
           </style>
           <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
       </head>
@@ -856,11 +812,25 @@ serve(async (req) => {
 
           <!-- 页脚 -->
           <footer>
-              <div class="footer">
-                  <div>© 2023 排队系统</div>
-                  <div class="obs-tip">
-                      使用URL: <span class="url" onclick="copyToClipboard('https://samm-paserver.deno.dev/obs-view.html')">https://samm-paserver.deno.dev/obs-view.html</span> 轻松将队列情况嵌入OBS
-                  </div>
+              <div class="footer-left" style="font-size: 14px; color: #FAF9F6;">
+                  &copy; 2025 萨慕堏. 保留所有权利.
+              </div>
+              <div class="footer-right" style="display: flex; gap: 15px;">
+                  <a href="javascript:void(0)" class="social-link" title="QQ" onclick="showContactInfo('QQ', '260379602')">
+                      <i class="fab fa-qq"></i>
+                  </a>
+                  <a href="javascript:void(0)" class="social-link" title="微信" onclick="showContactInfo('微信', 'yyyingFFFFangOwO（不常用）')">
+                      <i class="fab fa-weixin"></i>
+                  </a>
+                  <a href="https://space.bilibili.com/495830200" target="_blank" class="social-link" title="哔哩哔哩">
+                      <i class="fab fa-bilibili"></i>
+                  </a>
+                  <a href="https://github.com/FFFFANGooowo" target="_blank" class="social-link" title="GitHub">
+                      <i class="fab fa-github"></i>
+                  </a>
+                  <a href="https://steamcommunity.com/id/sammfang/" target="_blank" class="social-link" title="Steam">
+                      <i class="fab fa-steam"></i>
+                  </a>
               </div>
           </footer>
 
@@ -1393,15 +1363,6 @@ serve(async (req) => {
                       showNotification('正在清空队列...', 'info');
                   }
               }
-
-              // 添加复制到剪贴板功能
-              function copyToClipboard(text) {
-                  navigator.clipboard.writeText(text).then(function() {
-                      alert('URL已复制到剪贴板');
-                  }, function(err) {
-                      console.error('无法复制文本: ', err);
-                  });
-              }
           </script>
       </body>
       </html>`;
@@ -1469,30 +1430,29 @@ serve(async (req) => {
         /* 标题区域 */
         .header {
             display: flex;
-            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
             background: rgba(0, 0, 0, 0.7);
             border-radius: 8px;
             padding: 8px;
             margin-bottom: 10px;
-            width: 100%;
-            box-sizing: border-box;
         }
 
         .title {
             font-size: 24px;
             font-weight: bold;
-            text-align: center;
         }
 
-        .subtitle {
+        .byline {
             font-size: 14px;
             opacity: 0.8;
-            text-align: center;
-            margin-top: 4px;
         }
 
         /* 队列容器 */
         .queue-container {
+            position: absolute;
+            top: 60px; /* 为标题留出空间 */
+            left: 0;
             width: 100%;
             padding: 10px;
             box-sizing: border-box;
@@ -1536,10 +1496,13 @@ serve(async (req) => {
             body {
                 font-size: 14px;
             }
+            .header {
+                padding: 6px;
+            }
             .title {
                 font-size: 20px;
             }
-            .subtitle {
+            .byline {
                 font-size: 12px;
             }
             .queue-item {
@@ -1558,7 +1521,7 @@ serve(async (req) => {
 <body>
     <div class="header">
         <div class="title">队伍情况</div>
-        <div class="subtitle">前往samm-paserver.deno.dev参与排队</div>
+        <div class="byline">By SammFang</div>
     </div>
     <div class="queue-container" id="queueContainer">
         <!-- 队列项将通过JavaScript动态插入 -->
