@@ -1430,20 +1430,21 @@ serve(async (req) => {
         /* 标题区域 */
         .header {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            flex-direction: column;
             background: rgba(0, 0, 0, 0.7);
             border-radius: 8px;
             padding: 8px;
-            margin-bottom: 10px;
+            margin: 10px;
+            width: calc(100% - 20px);
         }
 
         .title {
             font-size: 24px;
             font-weight: bold;
+            margin-bottom: 4px;
         }
 
-        .byline {
+        .info {
             font-size: 14px;
             opacity: 0.8;
         }
@@ -1451,7 +1452,7 @@ serve(async (req) => {
         /* 队列容器 */
         .queue-container {
             position: absolute;
-            top: 60px; /* 为标题留出空间 */
+            top: 100px; /* 为标题留出空间 */
             left: 0;
             width: 100%;
             padding: 10px;
@@ -1462,7 +1463,7 @@ serve(async (req) => {
         .queue-item {
             display: flex;
             align-items: center;
-            margin-bottom: 8px;
+            margin: 0 10px 8px 10px;
             background: rgba(0, 0, 0, 0.7);
             border-radius: 8px;
             padding: 8px;
@@ -1498,15 +1499,18 @@ serve(async (req) => {
             }
             .header {
                 padding: 6px;
+                margin: 5px;
+                width: calc(100% - 10px);
             }
             .title {
                 font-size: 20px;
             }
-            .byline {
+            .info {
                 font-size: 12px;
             }
             .queue-item {
                 padding: 6px;
+                margin: 0 5px 6px 5px;
             }
             .position {
                 width: 30px;
@@ -1521,7 +1525,8 @@ serve(async (req) => {
 <body>
     <div class="header">
         <div class="title">队伍情况</div>
-        <div class="byline">By SammFang</div>
+        <div class="info">使用URL: https://samm-paserver.deno.dev/obs-view.html 轻松将队列情况嵌入OBS</div>
+        <div class="info">前往samm-paserver.deno.dev参与排队</div>
     </div>
     <div class="queue-container" id="queueContainer">
         <!-- 队列项将通过JavaScript动态插入 -->
