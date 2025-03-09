@@ -749,6 +749,32 @@ serve(async (req) => {
               .obs-tip .url:hover {
                   color: #0056b3;
               }
+
+              /* 修改底栏样式 */
+              .footer {
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  padding: 10px 20px;
+                  background-color: #f5f5f5;
+                  border-top: 1px solid #ddd;
+                  font-size: 14px;
+                  color: #666;
+              }
+
+              .footer .obs-tip {
+                  margin: 0;
+              }
+
+              .footer .url {
+                  color: #007bff;
+                  cursor: pointer;
+                  text-decoration: underline;
+              }
+
+              .footer .url:hover {
+                  color: #0056b3;
+              }
           </style>
           <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
       </head>
@@ -830,25 +856,11 @@ serve(async (req) => {
 
           <!-- 页脚 -->
           <footer>
-              <div class="footer-left" style="font-size: 14px; color: #FAF9F6;">
-                  &copy; 2025 萨慕堏. 保留所有权利.
-              </div>
-              <div class="footer-right" style="display: flex; gap: 15px;">
-                  <a href="javascript:void(0)" class="social-link" title="QQ" onclick="showContactInfo('QQ', '260379602')">
-                      <i class="fab fa-qq"></i>
-                  </a>
-                  <a href="javascript:void(0)" class="social-link" title="微信" onclick="showContactInfo('微信', 'yyyingFFFFangOwO（不常用）')">
-                      <i class="fab fa-weixin"></i>
-                  </a>
-                  <a href="https://space.bilibili.com/495830200" target="_blank" class="social-link" title="哔哩哔哩">
-                      <i class="fab fa-bilibili"></i>
-                  </a>
-                  <a href="https://github.com/FFFFANGooowo" target="_blank" class="social-link" title="GitHub">
-                      <i class="fab fa-github"></i>
-                  </a>
-                  <a href="https://steamcommunity.com/id/sammfang/" target="_blank" class="social-link" title="Steam">
-                      <i class="fab fa-steam"></i>
-                  </a>
+              <div class="footer">
+                  <div>© 2023 排队系统</div>
+                  <div class="obs-tip">
+                      使用URL: <span class="url" onclick="copyToClipboard('https://samm-paserver.deno.dev/obs-view.html')">https://samm-paserver.deno.dev/obs-view.html</span> 轻松将队列情况嵌入OBS
+                  </div>
               </div>
           </footer>
 
@@ -859,11 +871,6 @@ serve(async (req) => {
                   <h3 id="modalTitle">联系方式</h3>
                   <p id="modalContent"></p>
               </div>
-          </div>
-
-          <!-- 在页脚上方添加OBS提示 -->
-          <div class="obs-tip">
-              使用URL: <span class="url" onclick="copyToClipboard('https://samm-paserver.deno.dev/obs-view.html')">https://samm-paserver.deno.dev/obs-view.html</span> 轻松将队列情况嵌入OBS
           </div>
 
           <script>
