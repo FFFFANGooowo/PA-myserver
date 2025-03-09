@@ -731,6 +731,24 @@ serve(async (req) => {
               .danger-btn:hover {
                   background-color: #c0392b !important;
               }
+
+              /* 添加OBS提示样式 */
+              .obs-tip {
+                  text-align: center;
+                  margin: 20px 0;
+                  font-size: 14px;
+                  color: #666;
+              }
+
+              .obs-tip .url {
+                  color: #007bff;
+                  cursor: pointer;
+                  text-decoration: underline;
+              }
+
+              .obs-tip .url:hover {
+                  color: #0056b3;
+              }
           </style>
           <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
       </head>
@@ -841,6 +859,11 @@ serve(async (req) => {
                   <h3 id="modalTitle">联系方式</h3>
                   <p id="modalContent"></p>
               </div>
+          </div>
+
+          <!-- 在页脚上方添加OBS提示 -->
+          <div class="obs-tip">
+              使用URL: <span class="url" onclick="copyToClipboard('https://samm-paserver.deno.dev/obs-view.html')">https://samm-paserver.deno.dev/obs-view.html</span> 轻松将队列情况嵌入OBS
           </div>
 
           <script>
@@ -1363,6 +1386,15 @@ serve(async (req) => {
                       showNotification('正在清空队列...', 'info');
                   }
               }
+
+              // 添加复制到剪贴板功能
+              function copyToClipboard(text) {
+                  navigator.clipboard.writeText(text).then(function() {
+                      alert('URL已复制到剪贴板');
+                  }, function(err) {
+                      console.error('无法复制文本: ', err);
+                  });
+              }
           </script>
       </body>
       </html>`;
@@ -1434,26 +1466,26 @@ serve(async (req) => {
             background: rgba(0, 0, 0, 0.7);
             border-radius: 8px;
             padding: 8px;
-            margin: 10px;
-            width: calc(100% - 20px);
+            margin-bottom: 10px;
+            width: 100%;
+            box-sizing: border-box;
         }
 
         .title {
             font-size: 24px;
             font-weight: bold;
-            margin-bottom: 4px;
+            text-align: center;
         }
 
-        .info {
+        .subtitle {
             font-size: 14px;
             opacity: 0.8;
+            text-align: center;
+            margin-top: 4px;
         }
 
         /* 队列容器 */
         .queue-container {
-            position: absolute;
-            top: 100px; /* 为标题留出空间 */
-            left: 0;
             width: 100%;
             padding: 10px;
             box-sizing: border-box;
@@ -1463,7 +1495,7 @@ serve(async (req) => {
         .queue-item {
             display: flex;
             align-items: center;
-            margin: 0 10px 8px 10px;
+            margin-bottom: 8px;
             background: rgba(0, 0, 0, 0.7);
             border-radius: 8px;
             padding: 8px;
@@ -1497,20 +1529,14 @@ serve(async (req) => {
             body {
                 font-size: 14px;
             }
-            .header {
-                padding: 6px;
-                margin: 5px;
-                width: calc(100% - 10px);
-            }
             .title {
                 font-size: 20px;
             }
-            .info {
+            .subtitle {
                 font-size: 12px;
             }
             .queue-item {
                 padding: 6px;
-                margin: 0 5px 6px 5px;
             }
             .position {
                 width: 30px;
@@ -1525,8 +1551,7 @@ serve(async (req) => {
 <body>
     <div class="header">
         <div class="title">队伍情况</div>
-        <div class="info">使用URL: https://samm-paserver.deno.dev/obs-view.html 轻松将队列情况嵌入OBS</div>
-        <div class="info">前往samm-paserver.deno.dev参与排队</div>
+        <div class="subtitle">前往samm-paserver.deno.dev参与排队</div>
     </div>
     <div class="queue-container" id="queueContainer">
         <!-- 队列项将通过JavaScript动态插入 -->
