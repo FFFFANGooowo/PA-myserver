@@ -731,6 +731,25 @@ serve(async (req) => {
               .danger-btn:hover {
                   background-color: #c0392b !important;
               }
+
+              /* OBS提示信息 */
+              .obs-tip {
+                  text-align: center;
+                  margin: 20px 0;
+                  font-size: 14px;
+                  color: #666;
+              }
+
+              .obs-tip span {
+                  cursor: pointer;
+                  color: #4A3F35;
+                  text-decoration: underline;
+                  font-weight: bold;
+              }
+
+              .obs-tip span:hover {
+                  color: #2F2F2F;
+              }
           </style>
           <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
       </head>
@@ -841,6 +860,11 @@ serve(async (req) => {
                   <h3 id="modalTitle">联系方式</h3>
                   <p id="modalContent"></p>
               </div>
+          </div>
+
+          <!-- 在footer前添加OBS提示 -->
+          <div class="obs-tip">
+              使用URL: <span onclick="copyToClipboard('https://samm-paserver.deno.dev/obs-view.html')">https://samm-paserver.deno.dev/obs-view.html</span> 轻松将队列情况嵌入OBS
           </div>
 
           <script>
@@ -1362,6 +1386,13 @@ serve(async (req) => {
                       }));
                       showNotification('正在清空队列...', 'info');
                   }
+              }
+
+              // 添加复制到剪贴板功能
+              function copyToClipboard(text) {
+                  navigator.clipboard.writeText(text)
+                      .then(() => alert('URL已复制到剪贴板'))
+                      .catch(() => alert('复制失败，请手动复制'));
               }
           </script>
       </body>
