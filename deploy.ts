@@ -1551,7 +1551,8 @@ serve(async (req) => {
 </head>
 <body>
     <div class="header">
-      <div class="title"><p style="text-indent: 12px;">队伍情况</p>
+        <div class="title">队伍情况</div>
+        <div class="byline">samm-paserver</div>
     </div>
     <div class="queue-container" id="queueContainer">
         <!-- 队列项将通过JavaScript动态插入 -->
